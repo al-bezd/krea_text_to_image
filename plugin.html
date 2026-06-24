@@ -503,20 +503,19 @@
 
       // ─── Get canvas export from Photopea ─────────────────────────────────────────
       async function getCanvasImage() {
-        // Export the full document as PNG
-        const results = [];
+        // Export the full document as PNG — wait for "done" so its stray message
+        // doesn't race with the next ppRun handler
         return new Promise((resolve, reject) => {
-          let gotBuffer = false;
+          let buffer = null;
           const handler = (e) => {
             if (e.source !== window.parent) return;
             if (e.data instanceof ArrayBuffer) {
-              gotBuffer = true;
-              window.removeEventListener("message", handler);
+              buffer = e.data;
               log(`canvas exported: ${e.data.byteLength} bytes`);
-              resolve(e.data);
-            } else if (e.data === "done" && !gotBuffer) {
+            } else if (e.data === "done") {
               window.removeEventListener("message", handler);
-              reject(new Error("Документ не вернул изображение"));
+              if (buffer) resolve(buffer);
+              else reject(new Error("Документ не вернул изображение"));
             }
           };
           window.addEventListener("message", handler);
