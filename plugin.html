@@ -306,6 +306,7 @@ if (!API_BASE) { API_BASE = ""; }
 // ─── State ───────────────────────────────────────────────────────────────────
 let lastResultUrl = null;
 let lastResultBlob = null;
+let lastResultBuffer = null;
 let selectionBounds = null; // {left, top, width, height}
 
 // ─── Persist API key ──────────────────────────────────────────────────────────
@@ -578,10 +579,11 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
 
     // 5. If selection mode, include mask note in prompt
     if (mode === 'selection' && bounds) {
+      // Flux Kontext: промпт должен описывать желаемый результат для всего изображения.
+      // Указываем область явно в тексте промпта.
       const sel_w = bounds.right - bounds.left;
       const sel_h = bounds.bottom - bounds.top;
-      // Describe selected region crop for context
-      body.prompt = `[Edit only the selected region at x:${bounds.left},y:${bounds.top} w:${sel_w}h:${sel_h}] ${prompt}`;
+      body.prompt = `${prompt}. Apply this change only to the selected area (${sel_w}x${sel_h}px region), keep the rest of the image unchanged.`;
     }
 
     // 6. Submit job
@@ -609,14 +611,21 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
     const resultUrl = result?.urls?.[0] || result?.url;
     if (!resultUrl) throw new Error('API не вернул URL изображения');
 
-    // 8. Show preview
+    // 8. Скачиваем через прокси сразу — чтобы и превью и вставка работали
+    showStatus('⬇️ Скачиваю результат через прокси...', 'loading', true);
+    const proxyImgUrl = API_BASE + '/proxy?url=' + encodeURIComponent(resultUrl);
+    const dlRes = await fetch(proxyImgUrl);
+    if (!dlRes.ok) throw new Error('Не удалось скачать результат: ' + dlRes.status);
+    const dlBuffer = await dlRes.arrayBuffer();
+    // Конвертируем в blob URL для превью
+    const blob = new Blob([dlBuffer], { type: 'image/png' });
+    const localUrl = URL.createObjectURL(blob);
+
     lastResultUrl = resultUrl;
-    document.getElementById('previewImg').src = resultUrl;
+    lastResultBuffer = dlBuffer;
+    document.getElementById('previewImg').src = localUrl;
     document.getElementById('previewBox').className = 'preview-box visible';
     showStatus('✅ Готово! Выберите действие.', 'success');
-
-    // Сохраняем только URL — вставка через App.open (без fetch/CORS проблем)
-    lastResultUrl = resultUrl;
 
   } catch (err) {
     showStatus(`❌ ${err.message}`, 'error');
@@ -628,22 +637,14 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
 
 // ─── Apply result to Photopea ─────────────────────────────────────────────────
 document.getElementById('applyBtn').addEventListener('click', async () => {
-  if (!lastResultUrl) return;
+  if (!lastResultBuffer) return;
   showStatus('📥 Вставляю результат в документ...', 'loading', true);
   try {
-    // Качаем изображение через наш Worker-прокси (gen.krea.ai блокирует прямые запросы)
-    // Worker проксирует: /proxy?url=https://gen.krea.ai/... → возвращает с CORS заголовками
-    const proxyImageUrl = API_BASE + '/proxy?url=' + encodeURIComponent(lastResultUrl);
-    showStatus('📥 Скачиваю через прокси...', 'loading', true);
-    const imgRes = await fetch(proxyImageUrl);
-    if (!imgRes.ok) throw new Error('Прокси вернул ' + imgRes.status);
-    const imgBuffer = await imgRes.arrayBuffer();
-
-    // Отправляем ArrayBuffer напрямую в Photopea — открывает как новый слой
-    window.parent.postMessage(imgBuffer, '*');
+    // Отправляем уже скачанный буфер в Photopea — открывает как новый слой
+    window.parent.postMessage(lastResultBuffer, '*');
 
     // Переименовываем слой
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1200));
     await ppRun(`
       try {
         app.activeDocument.activeLayer.name = "Krea AI Result";
@@ -662,6 +663,7 @@ document.getElementById('discardBtn').addEventListener('click', () => {
   hideStatus();
   lastResultUrl = null;
   lastResultBlob = null;
+  lastResultBuffer = null;
 });
 </script>
 </body>
