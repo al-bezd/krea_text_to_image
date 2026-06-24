@@ -413,6 +413,10 @@
         API_BASE = "";
       }
 
+      // ─── Logger ──────────────────────────────────────────────────────────────────
+      const log = (...a) => console.log("[KREA PLUGIN]", ...a);
+      log("plugin loaded");
+
       // ─── State ───────────────────────────────────────────────────────────────────
       let lastResultUrl = null;
       let lastResultBlob = null;
@@ -508,6 +512,7 @@
             if (e.data instanceof ArrayBuffer) {
               gotBuffer = true;
               window.removeEventListener("message", handler);
+              log(`canvas exported: ${e.data.byteLength} bytes`);
               resolve(e.data);
             } else if (e.data === "done" && !gotBuffer) {
               window.removeEventListener("message", handler);
@@ -536,14 +541,17 @@
           docH: Math.round(doc.height.value)
         }));
       } catch(e) {
-        app.echoToOE("NO_SELECTION");
+        app.echoToOE("NO_SELECTION:" + e);
       }
     })();
   `);
         const str = res.find((x) => typeof x === "string" && x !== "done");
-        if (!str || str === "NO_SELECTION") return null;
+        log("getSelectionBounds raw:", str);
+        if (!str || str.startsWith("NO_SELECTION")) return null;
         try {
-          return JSON.parse(str);
+          const bounds = JSON.parse(str);
+          log("getSelectionBounds parsed:", bounds);
+          return bounds;
         } catch {
           return null;
         }
@@ -604,6 +612,7 @@
           });
           if (!res.ok) throw new Error(`Poll failed: ${res.status}`);
           const data = await res.json();
+          log(`poll: status=${data.status}`);
           showStatus(`⏳ Статус: ${data.status}...`, "loading", true);
           if (data.status === "completed") return data.result;
           if (data.status === "failed" || data.status === "cancelled") {
@@ -653,6 +662,7 @@
           const strength = parseFloat(
             document.getElementById("strength").value,
           );
+          log(`generate: mode=${mode} model=${model} strength=${strength} prompt="${prompt}"`);
 
           document.getElementById("generateBtn").disabled = true;
           document.getElementById("previewBox").className = "preview-box";
@@ -669,11 +679,10 @@
               bounds = await getSelectionBounds();
               if (!bounds) {
                 showStatus(
-                  "⚠️ Нет выделения — переключаю на весь холст",
-                  "loading",
-                  true,
+                  "❌ Нет активного выделения. Сделайте выделение лассо или прямоугольником и попробуйте снова.",
+                  "error",
                 );
-                await new Promise((r) => setTimeout(r, 1000));
+                return;
               }
             }
 
@@ -690,10 +699,13 @@
             const docW = bounds?.docW || img.width;
             const docH = bounds?.docH || img.height;
 
+            log(`image prep: docW=${docW} docH=${docH} bounds=${JSON.stringify(bounds)}`);
+
             if (mode === "selection" && bounds && model === "chatgpt-2") {
               // ChatGPT inpainting: весь холст, выделение = прозрачная область
               cropBounds = bounds; // результат — полный холст, при apply вырежем нужную часть
               lastWasFullCanvas = true;
+              log("mode: chatgpt-2 inpainting, sending full canvas with transparent hole");
               sendW = docW;
               sendH = docH;
               showStatus("🎭 Создаю маску для inpainting...", "loading", true);
@@ -717,6 +729,7 @@
               // Остальные модели: кроп выделения с белым фоном
               lastWasFullCanvas = false;
               cropBounds = bounds;
+              log("mode: selection crop, sending cropped region");
               const sel_w = bounds.right - bounds.left;
               const sel_h = bounds.bottom - bounds.top;
               sendW = sel_w;
@@ -746,6 +759,7 @@
               // Весь холст с белым фоном
               lastWasFullCanvas = false;
               cropBounds = null;
+              log("mode: full canvas");
               sendW = docW;
               sendH = docH;
               const fullCanvas = document.createElement("canvas");
@@ -761,12 +775,15 @@
             }
 
             // 4. Загружаем изображение
+            log(`upload: sendW=${sendW} sendH=${sendH} blobSize=${sendBlob.size}`);
             showStatus("⬆️ Загружаю в Krea...", "loading", true);
             let image_url;
             try {
               image_url = await uploadAsset(apiKey, sendBlob, "input.png");
               if (!image_url) throw new Error("no url");
+              log("uploaded asset:", image_url);
             } catch (e) {
+              log("asset upload failed, using base64 dataURL:", e.message);
               image_url = await blobToDataUrl(sendBlob);
             }
 
@@ -823,6 +840,7 @@
 
             const genData = await genRes.json();
             const jobId = genData.job_id;
+            log(`job submitted: endpoint=${endpoint} jobId=${jobId}`, body);
             showStatus(
               `⏳ Job запущен (${jobId.slice(0, 8)}...). Ждём результат...`,
               "loading",
@@ -832,6 +850,7 @@
             // 7. Poll
             const result = await pollJob(apiKey, jobId);
             const resultUrl = result?.urls?.[0] || result?.url;
+            log("job result:", result);
             if (!resultUrl) throw new Error("API не вернул URL изображения");
 
             // 8. Скачиваем через прокси сразу — чтобы и превью и вставка работали
@@ -850,6 +869,7 @@
             const blob = new Blob([dlBuffer], { type: "image/png" });
             const localUrl = URL.createObjectURL(blob);
 
+            log(`result downloaded: ${dlBuffer.byteLength} bytes, resultUrl=${resultUrl}, cropBounds=${JSON.stringify(cropBounds)}`);
             lastResultUrl = resultUrl;
             lastResultBuffer = dlBuffer;
             lastCropBounds = cropBounds;
@@ -859,7 +879,7 @@
             showStatus("✅ Готово! Выберите действие.", "success");
           } catch (err) {
             showStatus(`❌ ${err.message}`, "error");
-            console.error(err);
+            log("generate error:", err);
           } finally {
             document.getElementById("generateBtn").disabled = false;
           }
@@ -871,6 +891,7 @@
         .addEventListener("click", async () => {
           if (!lastResultBuffer) return;
           showStatus("📥 Вставляю результат в документ...", "loading", true);
+          log(`apply: cropBounds=${JSON.stringify(lastCropBounds)} wasFullCanvas=${lastWasFullCanvas} bufferSize=${lastResultBuffer.byteLength}`);
           try {
             let bufferToSend = lastResultBuffer;
 
@@ -902,33 +923,58 @@
                   "image/png",
                 ),
               );
+              log(`apply: cropped buffer ready: ${bufferToSend.byteLength} bytes, targetW=${targetW} targetH=${targetH}`);
             }
 
-            // Отправляем буфер в Photopea — открывает как новый слой
+            // Запоминаем имя исходного документа до отправки
+            const nameRes = await ppRun(`
+              try { app.echoToOE(app.activeDocument.name); } catch(e) { app.echoToOE("err:" + e); }
+            `);
+            const origDocName = nameRes.find((x) => typeof x === "string" && x !== "done") || "";
+            log("apply: original doc name:", origDocName);
+
+            // Отправляем буфер — Photopea откроет его как новый документ
+            log(`apply: sending buffer to Photopea (${bufferToSend.byteLength} bytes)`);
             window.parent.postMessage(bufferToSend, "*");
             await new Promise((r) => setTimeout(r, 1500));
 
-            if (lastCropBounds) {
-              const x = lastCropBounds.left;
-              const y = lastCropBounds.top;
-              await ppRun(`
-        try {
-          var lyr = app.activeDocument.activeLayer;
-          lyr.name = "Krea AI Result";
-          var bounds = lyr.bounds;
-          var curX = bounds[0].value;
-          var curY = bounds[1].value;
-          lyr.translate(${x} - curX, ${y} - curY);
-        } catch(e) { app.echoToOE("move_err:" + e); }
-      `);
-            } else {
-              await ppRun(`
-        try { app.activeDocument.activeLayer.name = "Krea AI Result"; } catch(e) {}
-      `);
-            }
+            // Перемещаем слой из нового документа в исходный и закрываем новый
+            const x = lastCropBounds ? lastCropBounds.left : null;
+            const y = lastCropBounds ? lastCropBounds.top : null;
+            const hasPos = lastCropBounds !== null;
+
+            const moveRes = await ppRun(`
+              try {
+                var origDoc = null;
+                for (var i = 0; i < app.documents.length; i++) {
+                  if (app.documents[i].name === ${JSON.stringify(origDocName)}) {
+                    origDoc = app.documents[i];
+                    break;
+                  }
+                }
+                if (!origDoc) throw new Error("original doc not found: " + ${JSON.stringify(origDocName)});
+
+                var newDoc = app.activeDocument;
+                var resultLyr = newDoc.activeLayer;
+                resultLyr.duplicate(origDoc, ElementPlacement.PLACEATBEGINNING);
+                newDoc.close(SaveOptions.DONOTSAVECHANGES);
+
+                app.activeDocument = origDoc;
+                var lyr = origDoc.activeLayer;
+                lyr.name = "Krea AI Result";
+
+                ${hasPos ? `
+                var b = lyr.bounds;
+                lyr.translate(${x} - b[0].value, ${y} - b[1].value);
+                app.echoToOE("ok:moved to ${x},${y}");
+                ` : `app.echoToOE("ok:no reposition");`}
+              } catch(e) { app.echoToOE("err:" + e); }
+            `);
+            log("apply move result:", moveRes);
 
             showStatus('✅ Слой "Krea AI Result" добавлен!', "success");
           } catch (err) {
+            log("apply error:", err);
             showStatus(`❌ ${err.message}`, "error");
           }
         });
