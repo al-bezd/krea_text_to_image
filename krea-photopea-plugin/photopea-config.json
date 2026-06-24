@@ -3,8 +3,8 @@
     "plugins": [
       {
         "name": "Krea AI",
-        "url": "https://YOUR-HOST/plugin.html",
-        "icon": "https://YOUR-HOST/icon.svg"
+        "url": "https://al-bezd.github.io/krea_text_to_image/plugin.html",
+        "icon": "https://al-bezd.github.io/krea_text_to_image/icon.svg"
       }
     ]
   }
