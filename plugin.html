@@ -339,6 +339,9 @@
           <option value="nano-banana-pro">
             Nano Banana Pro — универсальный
           </option>
+          <option value="nano-banana">
+            Nano Banana — быстрый и дешёвый ($0.04)
+          </option>
           <option value="imagen-4">Imagen 4 — Google, высокое качество</option>
         </select>
       </div>
@@ -590,7 +593,7 @@
       }
 
       // ─── Poll job until done ──────────────────────────────────────────────────────
-      async function pollJob(apiKey, jobId, maxWait = 300000) {
+      async function pollJob(apiKey, jobId, maxWait = 120000 * 3) {
         const start = Date.now();
         while (Date.now() - start < maxWait) {
           await new Promise((r) => setTimeout(r, 2500));
@@ -613,8 +616,9 @@
         "flux-kontext": "/generate/image/bfl/flux-1-kontext-dev",
         "chatgpt-2": "/generate/image/openai/gpt-image-2",
         seededit: "/generate/image/bytedance/seededit",
-        "nano-banana-pro": "/generate/image/krea/nano-banana-pro",
+        "nano-banana-pro": "/generate/image/google/nano-banana-pro",
         "imagen-4": "/generate/image/google/imagen-4",
+        "nano-banana": "/generate/image/google/nano-banana",
       };
 
       // ─── Main generate flow ───────────────────────────────────────────────────────
@@ -707,6 +711,10 @@
             } else if (model === "seededit") {
               body.image_url = image_url;
               body.strength = strength;
+              body.width = w;
+              body.height = h;
+            } else if (model === "nano-banana") {
+              body.image_urls = [image_url];
               body.width = w;
               body.height = h;
             } else {
