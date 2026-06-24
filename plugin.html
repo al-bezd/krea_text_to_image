@@ -631,9 +631,16 @@ document.getElementById('applyBtn').addEventListener('click', async () => {
   if (!lastResultUrl) return;
   showStatus('📥 Вставляю результат в документ...', 'loading', true);
   try {
-    // Используем App.open(url, null, true) — загружает URL напрямую как Smart Object слой
-    // Это обходит CORS полностью, т.к. Photopea сам скачивает изображение
-    await ppRun(`app.open(${JSON.stringify(lastResultUrl)}, null, true);`);
+    // Качаем изображение через наш Worker-прокси (gen.krea.ai блокирует прямые запросы)
+    // Worker проксирует: /proxy?url=https://gen.krea.ai/... → возвращает с CORS заголовками
+    const proxyImageUrl = API_BASE + '/proxy?url=' + encodeURIComponent(lastResultUrl);
+    showStatus('📥 Скачиваю через прокси...', 'loading', true);
+    const imgRes = await fetch(proxyImageUrl);
+    if (!imgRes.ok) throw new Error('Прокси вернул ' + imgRes.status);
+    const imgBuffer = await imgRes.arrayBuffer();
+
+    // Отправляем ArrayBuffer напрямую в Photopea — открывает как новый слой
+    window.parent.postMessage(imgBuffer, '*');
 
     // Переименовываем слой
     await new Promise(r => setTimeout(r, 800));
