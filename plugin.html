@@ -218,11 +218,21 @@
 
   <!-- API Key -->
   <div>
-    <label>API Key <a href="https://www.krea.ai/dashboard/api" target="_blank" style="text-transform:none;color:#7c3aed">→ получить</a></label>
+    <label>API Key <a href="https://www.krea.ai/settings/api-tokens" target="_blank" style="text-transform:none;color:#7c3aed">→ получить</a></label>
     <div class="api-row">
-      <input type="password" id="apiKey" placeholder="Bearer token из krea.ai/dashboard/api">
+      <input type="password" id="apiKey" placeholder="Bearer token из krea.ai/settings/api-tokens">
       <button class="btn btn-secondary" id="saveKey">Сохр.</button>
     </div>
+  </div>
+
+  <!-- Proxy URL -->
+  <div>
+    <label>Cloudflare Worker URL <a href="https://workers.cloudflare.com" target="_blank" style="text-transform:none;color:#7c3aed">→ создать бесплатно</a></label>
+    <div class="api-row">
+      <input type="text" id="proxyUrl" placeholder="https://krea-proxy.ИМЯ.workers.dev">
+      <button class="btn btn-secondary" id="saveProxy">Сохр.</button>
+    </div>
+    <p class="tip" style="margin-top:4px">Нужен для обхода CORS. Деплой занимает 2 мин.</p>
   </div>
 
   <hr class="divider">
@@ -288,6 +298,11 @@
 </div>
 
 <script>
+// ─── Config ──────────────────────────────────────────────────────────────────
+// Замени на URL своего Cloudflare Worker после деплоя:
+let API_BASE = localStorage.getItem('krea_proxy') || "";
+if (!API_BASE) { API_BASE = ""; }
+
 // ─── State ───────────────────────────────────────────────────────────────────
 let lastResultUrl = null;
 let lastResultBlob = null;
@@ -301,6 +316,19 @@ if (savedKey) apiKeyInput.value = savedKey;
 document.getElementById('saveKey').addEventListener('click', () => {
   localStorage.setItem('krea_api_key', apiKeyInput.value.trim());
   showStatus('API key сохранён', 'success');
+});
+
+// ─── Proxy URL ────────────────────────────────────────────────────────────────
+const proxyInput = document.getElementById('proxyUrl');
+const savedProxy = localStorage.getItem('krea_proxy');
+if (savedProxy) proxyInput.value = savedProxy;
+
+document.getElementById('saveProxy').addEventListener('click', () => {
+  const val = proxyInput.value.trim().replace(/\/$/, '');
+  localStorage.setItem('krea_proxy', val);
+  // Update runtime variable
+  window.API_BASE_RUNTIME = val;
+  showStatus('Proxy URL сохранён', 'success');
 });
 
 // ─── Strength slider ─────────────────────────────────────────────────────────
@@ -419,7 +447,7 @@ async function createMaskDataUrl(bounds, docW, docH) {
 async function uploadAsset(apiKey, blob, filename) {
   const form = new FormData();
   form.append('file', blob, filename);
-  const res = await fetch('https://api.krea.ai/assets', {
+  const res = await fetch(API_BASE + '/assets', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}` },
     body: form
@@ -435,7 +463,7 @@ async function pollJob(apiKey, jobId, maxWait = 120000) {
   const start = Date.now();
   while (Date.now() - start < maxWait) {
     await new Promise(r => setTimeout(r, 2500));
-    const res = await fetch(`https://api.krea.ai/jobs/${jobId}`, {
+    const res = await fetch(API_BASE + `/jobs/${jobId}`, {
       headers: { 'Authorization': `Bearer ${apiKey}` }
     });
     if (!res.ok) throw new Error(`Poll failed: ${res.status}`);
@@ -462,6 +490,9 @@ const MODEL_ENDPOINTS = {
 document.getElementById('generateBtn').addEventListener('click', async () => {
   const apiKey = apiKeyInput.value.trim();
   if (!apiKey) { showStatus('❌ Введите API Key', 'error'); return; }
+
+  API_BASE = (proxyInput.value.trim().replace(/\/$/, '')) || localStorage.getItem('krea_proxy') || '';
+  if (!API_BASE) { showStatus('❌ Введите URL Cloudflare Worker (прокси)', 'error'); return; }
 
   const prompt = document.getElementById('prompt').value.trim();
   if (!prompt) { showStatus('❌ Введите промпт', 'error'); return; }
@@ -544,7 +575,7 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
 
     // 6. Submit job
     showStatus('🚀 Отправляю задачу в Krea...', 'loading', true);
-    const genRes = await fetch(`https://api.krea.ai${endpoint}`, {
+    const genRes = await fetch(API_BASE + endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
