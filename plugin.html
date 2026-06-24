@@ -527,24 +527,23 @@
       // ─── Get selection bounds ─────────────────────────────────────────────────────
       async function getSelectionBounds() {
         const res = await ppRun(`
-    (function() {
-      try {
-        var doc = app.activeDocument;
-        var sel = doc.selection;
-        var b = sel.bounds;
-        app.echoToOE(JSON.stringify({
-          left: Math.round(b[0].value),
-          top:  Math.round(b[1].value),
-          right: Math.round(b[2].value),
-          bottom: Math.round(b[3].value),
-          docW: Math.round(doc.width.value),
-          docH: Math.round(doc.height.value)
-        }));
-      } catch(e) {
-        app.echoToOE("NO_SELECTION:" + e);
-      }
-    })();
+  try {
+    var doc = app.activeDocument;
+    var sel = doc.selection;
+    var b = sel.bounds;
+    app.echoToOE(JSON.stringify({
+      left: Math.round(b[0].value),
+      top: Math.round(b[1].value),
+      right: Math.round(b[2].value),
+      bottom: Math.round(b[3].value),
+      docW: Math.round(doc.width.value),
+      docH: Math.round(doc.height.value)
+    }));
+  } catch(e) {
+    app.echoToOE("NO_SELECTION:" + e);
+  }
   `);
+        log("getSelectionBounds res array:", res);
         const str = res.find((x) => typeof x === "string" && x !== "done");
         log("getSelectionBounds raw:", str);
         if (!str || str.startsWith("NO_SELECTION")) return null;
