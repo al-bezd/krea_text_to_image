@@ -1,414 +1,522 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Krea AI Inpainting</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #1e1e1e;
-    color: #e0e0e0;
-    font-size: 13px;
-    height: 100vh;
-    overflow-y: auto;
-  }
-
-  .header {
-    background: #2a2a2a;
-    padding: 10px 12px;
-    border-bottom: 1px solid #3a3a3a;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .header-logo {
-    width: 22px; height: 22px;
-    background: linear-gradient(135deg, #7c3aed, #ec4899);
-    border-radius: 5px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: bold; color: white;
-  }
-
-  .header h1 { font-size: 13px; font-weight: 600; color: #fff; }
-
-  .content { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-
-  label {
-    display: block;
-    font-size: 11px;
-    color: #888;
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  input[type="text"], input[type="password"], textarea, select {
-    width: 100%;
-    background: #2a2a2a;
-    border: 1px solid #3a3a3a;
-    border-radius: 5px;
-    color: #e0e0e0;
-    padding: 7px 10px;
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  input[type="text"]:focus,
-  input[type="password"]:focus,
-  textarea:focus,
-  select:focus {
-    border-color: #7c3aed;
-  }
-
-  textarea {
-    resize: vertical;
-    min-height: 70px;
-    font-family: inherit;
-    line-height: 1.5;
-  }
-
-  .api-row {
-    display: flex;
-    gap: 6px;
-    align-items: flex-end;
-  }
-
-  .api-row input { flex: 1; }
-
-  .btn {
-    background: #7c3aed;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    padding: 8px 12px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-    white-space: nowrap;
-  }
-
-  .btn:hover { background: #6d28d9; }
-  .btn:active { background: #5b21b6; }
-  .btn:disabled { background: #444; color: #666; cursor: not-allowed; }
-
-  .btn-secondary {
-    background: #2a2a2a;
-    border: 1px solid #3a3a3a;
-    color: #aaa;
-  }
-  .btn-secondary:hover { background: #333; color: #eee; border-color: #555; }
-
-  .btn-full { width: 100%; }
-
-  .model-select { width: 100%; }
-
-  .status-box {
-    background: #2a2a2a;
-    border: 1px solid #3a3a3a;
-    border-radius: 5px;
-    padding: 8px 10px;
-    font-size: 11px;
-    color: #888;
-    min-height: 36px;
-    line-height: 1.5;
-    display: none;
-  }
-
-  .status-box.visible { display: block; }
-  .status-box.loading { color: #a78bfa; border-color: #7c3aed44; }
-  .status-box.success { color: #4ade80; border-color: #22c55e44; }
-  .status-box.error   { color: #f87171; border-color: #ef444444; }
-
-  .preview-box {
-    display: none;
-    border-radius: 5px;
-    overflow: hidden;
-    border: 1px solid #3a3a3a;
-  }
-
-  .preview-box.visible { display: block; }
-
-  .preview-box img {
-    width: 100%;
-    display: block;
-  }
-
-  .preview-actions {
-    display: flex;
-    gap: 6px;
-    padding: 6px;
-    background: #2a2a2a;
-  }
-
-  .preview-actions .btn { flex: 1; font-size: 11px; padding: 6px; }
-
-  .divider {
-    border: none;
-    border-top: 1px solid #333;
-  }
-
-  .tip {
-    font-size: 10px;
-    color: #555;
-    line-height: 1.5;
-  }
-
-  .tip a { color: #7c3aed; text-decoration: none; }
-
-  .strength-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .strength-row input[type="range"] {
-    flex: 1;
-    accent-color: #7c3aed;
-    background: transparent;
-    border: none;
-    padding: 0;
-  }
-
-  .strength-val {
-    font-size: 12px;
-    color: #aaa;
-    min-width: 28px;
-    text-align: right;
-  }
-
-  .spinner {
-    display: inline-block;
-    width: 12px; height: 12px;
-    border: 2px solid #7c3aed44;
-    border-top-color: #7c3aed;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    vertical-align: middle;
-    margin-right: 6px;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .badge {
-    display: inline-block;
-    font-size: 9px;
-    padding: 1px 5px;
-    border-radius: 3px;
-    background: #7c3aed33;
-    color: #a78bfa;
-    margin-left: 4px;
-    vertical-align: middle;
-  }
-</style>
-</head>
-<body>
-
-<div class="header">
-  <div class="header-logo">K</div>
-  <h1>Krea AI <span class="badge">Inpainting</span></h1>
-</div>
-
-<div class="content">
-
-  <!-- API Key -->
-  <div>
-    <label>API Key <a href="https://www.krea.ai/settings/api-tokens" target="_blank" style="text-transform:none;color:#7c3aed">→ получить</a></label>
-    <div class="api-row">
-      <input type="password" id="apiKey" placeholder="Bearer token из krea.ai/settings/api-tokens">
-      <button class="btn btn-secondary" id="saveKey">Сохр.</button>
-    </div>
-  </div>
-
-  <!-- Proxy URL -->
-  <div>
-    <label>Cloudflare Worker URL <a href="https://workers.cloudflare.com" target="_blank" style="text-transform:none;color:#7c3aed">→ создать бесплатно</a></label>
-    <div class="api-row">
-      <input type="text" id="proxyUrl" placeholder="https://krea-proxy.ИМЯ.workers.dev">
-      <button class="btn btn-secondary" id="saveProxy">Сохр.</button>
-    </div>
-    <p class="tip" style="margin-top:4px">Нужен для обхода CORS. Деплой занимает 2 мин.</p>
-  </div>
-
-  <hr class="divider">
-
-  <!-- Model -->
-  <div>
-    <label>Модель</label>
-    <select class="model-select" id="model">
-      <option value="flux-kontext">Flux Kontext — редактирование/inpainting ⭐</option>
-      <option value="chatgpt-2">ChatGPT Image 2 — умное редактирование</option>
-      <option value="seededit">SeedEdit — frontier editing</option>
-      <option value="nano-banana-pro">Nano Banana Pro — универсальный</option>
-      <option value="imagen-4">Imagen 4 — Google, высокое качество</option>
-    </select>
-  </div>
-
-  <!-- Prompt -->
-  <div>
-    <label>Промпт (что нарисовать)</label>
-    <textarea id="prompt" placeholder="Например: a glowing magic crystal ball on a wooden table, fantasy style"></textarea>
-  </div>
-
-  <!-- Strength -->
-  <div>
-    <label>Сила редактирования</label>
-    <div class="strength-row">
-      <input type="range" id="strength" min="0.1" max="1" step="0.05" value="0.85">
-      <span class="strength-val" id="strengthVal">0.85</span>
-    </div>
-    <p class="tip">0.1 = почти без изменений · 1.0 = полная генерация</p>
-  </div>
-
-  <!-- Mode -->
-  <div>
-    <label>Режим</label>
-    <select id="mode">
-      <option value="selection">Только выделенная область</option>
-      <option value="full">Весь холст</option>
-    </select>
-  </div>
-
-  <hr class="divider">
-
-  <!-- Generate -->
-  <button class="btn btn-full" id="generateBtn">✦ Генерировать</button>
-
-  <div class="status-box" id="status"></div>
-
-  <!-- Preview -->
-  <div class="preview-box" id="previewBox">
-    <img id="previewImg" src="" alt="Результат">
-    <div class="preview-actions">
-      <button class="btn" id="applyBtn">✓ Вставить в слой</button>
-      <button class="btn btn-secondary" id="discardBtn">✕ Отмена</button>
-    </div>
-  </div>
-
-  <p class="tip">
-    Совет: сделай выделение (Ctrl+A для всего, или Rectangular Marquee Tool) → введи промпт → нажми Генерировать.<br><br>
-    Krea API: async job polling · модель <b>Flux Kontext</b> лучше всего для редактирования существующих изображений.
-  </p>
-
-</div>
-
-<script>
-// ─── Config ──────────────────────────────────────────────────────────────────
-// Замени на URL своего Cloudflare Worker после деплоя:
-let API_BASE = localStorage.getItem('krea_proxy') || "";
-if (!API_BASE) { API_BASE = ""; }
-
-// ─── State ───────────────────────────────────────────────────────────────────
-let lastResultUrl = null;
-let lastResultBlob = null;
-let lastResultBuffer = null;
-let selectionBounds = null; // {left, top, width, height}
-
-// ─── Persist API key ──────────────────────────────────────────────────────────
-const apiKeyInput = document.getElementById('apiKey');
-const savedKey = localStorage.getItem('krea_api_key');
-if (savedKey) apiKeyInput.value = savedKey;
-
-document.getElementById('saveKey').addEventListener('click', () => {
-  localStorage.setItem('krea_api_key', apiKeyInput.value.trim());
-  showStatus('API key сохранён', 'success');
-});
-
-// ─── Proxy URL ────────────────────────────────────────────────────────────────
-const proxyInput = document.getElementById('proxyUrl');
-const savedProxy = localStorage.getItem('krea_proxy');
-if (savedProxy) proxyInput.value = savedProxy;
-
-document.getElementById('saveProxy').addEventListener('click', () => {
-  const val = proxyInput.value.trim().replace(/\/$/, '');
-  localStorage.setItem('krea_proxy', val);
-  // Update runtime variable
-  window.API_BASE_RUNTIME = val;
-  showStatus('Proxy URL сохранён', 'success');
-});
-
-// ─── Strength slider ─────────────────────────────────────────────────────────
-const strengthSlider = document.getElementById('strength');
-const strengthVal = document.getElementById('strengthVal');
-strengthSlider.addEventListener('input', () => {
-  strengthVal.textContent = parseFloat(strengthSlider.value).toFixed(2);
-});
-
-// ─── Status helper ───────────────────────────────────────────────────────────
-function showStatus(msg, type = 'loading', spinner = false) {
-  const el = document.getElementById('status');
-  el.className = `status-box visible ${type}`;
-  el.innerHTML = spinner ? `<span class="spinner"></span>${msg}` : msg;
-}
-
-function hideStatus() {
-  document.getElementById('status').className = 'status-box';
-}
-
-// ─── postMessage to Photopea ─────────────────────────────────────────────────
-function ppRun(script) {
-  return new Promise((resolve) => {
-    const results = [];
-    const handler = (e) => {
-      if (e.source !== window.parent) return;
-      if (e.data === 'done') {
-        window.removeEventListener('message', handler);
-        resolve(results);
-      } else {
-        results.push(e.data);
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Krea AI Inpainting</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
-    };
-    window.addEventListener('message', handler);
-    window.parent.postMessage(script, '*');
-  });
-}
 
-// ─── Encode ArrayBuffer → base64 ─────────────────────────────────────────────
-function arrayBufferToBase64(buffer) {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-function base64ToArrayBuffer(b64) {
-  const binary = atob(b64);
-  const buf = new ArrayBuffer(binary.length);
-  const view = new Uint8Array(buf);
-  for (let i = 0; i < binary.length; i++) view[i] = binary.charCodeAt(i);
-  return buf;
-}
-
-// ─── Get canvas export from Photopea ─────────────────────────────────────────
-async function getCanvasImage() {
-  // Export the full document as PNG
-  const results = [];
-  return new Promise((resolve, reject) => {
-    let gotBuffer = false;
-    const handler = (e) => {
-      if (e.source !== window.parent) return;
-      if (e.data instanceof ArrayBuffer) {
-        gotBuffer = true;
-        window.removeEventListener('message', handler);
-        resolve(e.data);
-      } else if (e.data === 'done' && !gotBuffer) {
-        window.removeEventListener('message', handler);
-        reject(new Error('Документ не вернул изображение'));
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #1e1e1e;
+        color: #e0e0e0;
+        font-size: 13px;
+        height: 100vh;
+        overflow-y: auto;
       }
-    };
-    window.addEventListener('message', handler);
-    window.parent.postMessage(`app.activeDocument.saveToOE("png")`, '*');
-  });
-}
 
-// ─── Get selection bounds ─────────────────────────────────────────────────────
-async function getSelectionBounds() {
-  const res = await ppRun(`
+      .header {
+        background: #2a2a2a;
+        padding: 10px 12px;
+        border-bottom: 1px solid #3a3a3a;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .header-logo {
+        width: 22px;
+        height: 22px;
+        background: linear-gradient(135deg, #7c3aed, #ec4899);
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        color: white;
+      }
+
+      .header h1 {
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+      }
+
+      .content {
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      label {
+        display: block;
+        font-size: 11px;
+        color: #888;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      input[type="text"],
+      input[type="password"],
+      textarea,
+      select {
+        width: 100%;
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        border-radius: 5px;
+        color: #e0e0e0;
+        padding: 7px 10px;
+        font-size: 12px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+
+      input[type="text"]:focus,
+      input[type="password"]:focus,
+      textarea:focus,
+      select:focus {
+        border-color: #7c3aed;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 70px;
+        font-family: inherit;
+        line-height: 1.5;
+      }
+
+      .api-row {
+        display: flex;
+        gap: 6px;
+        align-items: flex-end;
+      }
+
+      .api-row input {
+        flex: 1;
+      }
+
+      .btn {
+        background: #7c3aed;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        white-space: nowrap;
+      }
+
+      .btn:hover {
+        background: #6d28d9;
+      }
+      .btn:active {
+        background: #5b21b6;
+      }
+      .btn:disabled {
+        background: #444;
+        color: #666;
+        cursor: not-allowed;
+      }
+
+      .btn-secondary {
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        color: #aaa;
+      }
+      .btn-secondary:hover {
+        background: #333;
+        color: #eee;
+        border-color: #555;
+      }
+
+      .btn-full {
+        width: 100%;
+      }
+
+      .model-select {
+        width: 100%;
+      }
+
+      .status-box {
+        background: #2a2a2a;
+        border: 1px solid #3a3a3a;
+        border-radius: 5px;
+        padding: 8px 10px;
+        font-size: 11px;
+        color: #888;
+        min-height: 36px;
+        line-height: 1.5;
+        display: none;
+      }
+
+      .status-box.visible {
+        display: block;
+      }
+      .status-box.loading {
+        color: #a78bfa;
+        border-color: #7c3aed44;
+      }
+      .status-box.success {
+        color: #4ade80;
+        border-color: #22c55e44;
+      }
+      .status-box.error {
+        color: #f87171;
+        border-color: #ef444444;
+      }
+
+      .preview-box {
+        display: none;
+        border-radius: 5px;
+        overflow: hidden;
+        border: 1px solid #3a3a3a;
+      }
+
+      .preview-box.visible {
+        display: block;
+      }
+
+      .preview-box img {
+        width: 100%;
+        display: block;
+      }
+
+      .preview-actions {
+        display: flex;
+        gap: 6px;
+        padding: 6px;
+        background: #2a2a2a;
+      }
+
+      .preview-actions .btn {
+        flex: 1;
+        font-size: 11px;
+        padding: 6px;
+      }
+
+      .divider {
+        border: none;
+        border-top: 1px solid #333;
+      }
+
+      .tip {
+        font-size: 10px;
+        color: #555;
+        line-height: 1.5;
+      }
+
+      .tip a {
+        color: #7c3aed;
+        text-decoration: none;
+      }
+
+      .strength-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .strength-row input[type="range"] {
+        flex: 1;
+        accent-color: #7c3aed;
+        background: transparent;
+        border: none;
+        padding: 0;
+      }
+
+      .strength-val {
+        font-size: 12px;
+        color: #aaa;
+        min-width: 28px;
+        text-align: right;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid #7c3aed44;
+        border-top-color: #7c3aed;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .badge {
+        display: inline-block;
+        font-size: 9px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: #7c3aed33;
+        color: #a78bfa;
+        margin-left: 4px;
+        vertical-align: middle;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-logo">K</div>
+      <h1>Krea AI <span class="badge">Inpainting</span></h1>
+    </div>
+
+    <div class="content">
+      <!-- API Key -->
+      <div>
+        <label
+          >API Key
+          <a
+            href="https://www.krea.ai/settings/api-tokens"
+            target="_blank"
+            style="text-transform: none; color: #7c3aed"
+            >→ получить</a
+          ></label
+        >
+        <div class="api-row">
+          <input
+            type="password"
+            id="apiKey"
+            placeholder="Bearer token из krea.ai/settings/api-tokens"
+          />
+          <button class="btn btn-secondary" id="saveKey">Сохр.</button>
+        </div>
+      </div>
+
+      <!-- Proxy URL -->
+      <div>
+        <label
+          >Cloudflare Worker URL
+          <a
+            href="https://workers.cloudflare.com"
+            target="_blank"
+            style="text-transform: none; color: #7c3aed"
+            >→ создать бесплатно</a
+          ></label
+        >
+        <div class="api-row">
+          <input
+            type="text"
+            id="proxyUrl"
+            placeholder="https://krea-proxy.ИМЯ.workers.dev"
+          />
+          <button class="btn btn-secondary" id="saveProxy">Сохр.</button>
+        </div>
+        <p class="tip" style="margin-top: 4px">
+          Нужен для обхода CORS. Деплой занимает 2 мин.
+        </p>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Model -->
+      <div>
+        <label>Модель</label>
+        <select class="model-select" id="model">
+          <option value="flux-kontext">
+            Flux Kontext — редактирование/inpainting ⭐
+          </option>
+          <option value="chatgpt-2">
+            ChatGPT Image 2 — умное редактирование
+          </option>
+          <option value="seededit">SeedEdit — frontier editing</option>
+          <option value="nano-banana-pro">
+            Nano Banana Pro — универсальный
+          </option>
+          <option value="imagen-4">Imagen 4 — Google, высокое качество</option>
+        </select>
+      </div>
+
+      <!-- Prompt -->
+      <div>
+        <label>Промпт (что нарисовать)</label>
+        <textarea
+          id="prompt"
+          placeholder="Например: a glowing magic crystal ball on a wooden table, fantasy style"
+        ></textarea>
+      </div>
+
+      <!-- Strength -->
+      <div>
+        <label>Сила редактирования</label>
+        <div class="strength-row">
+          <input
+            type="range"
+            id="strength"
+            min="0.1"
+            max="1"
+            step="0.05"
+            value="0.85"
+          />
+          <span class="strength-val" id="strengthVal">0.85</span>
+        </div>
+        <p class="tip">0.1 = почти без изменений · 1.0 = полная генерация</p>
+      </div>
+
+      <!-- Mode -->
+      <div>
+        <label>Режим</label>
+        <select id="mode">
+          <option value="selection">Только выделенная область</option>
+          <option value="full">Весь холст</option>
+        </select>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Generate -->
+      <button class="btn btn-full" id="generateBtn">✦ Генерировать</button>
+
+      <div class="status-box" id="status"></div>
+
+      <!-- Preview -->
+      <div class="preview-box" id="previewBox">
+        <img id="previewImg" src="" alt="Результат" />
+        <div class="preview-actions">
+          <button class="btn" id="applyBtn">✓ Вставить в слой</button>
+          <button class="btn btn-secondary" id="discardBtn">✕ Отмена</button>
+        </div>
+      </div>
+
+      <p class="tip">
+        Совет: сделай выделение (Ctrl+A для всего, или Rectangular Marquee Tool)
+        → введи промпт → нажми Генерировать.<br /><br />
+        Krea API: async job polling · модель <b>Flux Kontext</b> лучше всего для
+        редактирования существующих изображений.
+      </p>
+    </div>
+
+    <script>
+      // ─── Config ──────────────────────────────────────────────────────────────────
+      // Замени на URL своего Cloudflare Worker после деплоя:
+      let API_BASE = localStorage.getItem("krea_proxy") || "";
+      if (!API_BASE) {
+        API_BASE = "";
+      }
+
+      // ─── State ───────────────────────────────────────────────────────────────────
+      let lastResultUrl = null;
+      let lastResultBlob = null;
+      let lastResultBuffer = null;
+      let selectionBounds = null; // {left, top, width, height}
+
+      // ─── Persist API key ──────────────────────────────────────────────────────────
+      const apiKeyInput = document.getElementById("apiKey");
+      const savedKey = localStorage.getItem("krea_api_key");
+      if (savedKey) apiKeyInput.value = savedKey;
+
+      document.getElementById("saveKey").addEventListener("click", () => {
+        localStorage.setItem("krea_api_key", apiKeyInput.value.trim());
+        showStatus("API key сохранён", "success");
+      });
+
+      // ─── Proxy URL ────────────────────────────────────────────────────────────────
+      const proxyInput = document.getElementById("proxyUrl");
+      const savedProxy = localStorage.getItem("krea_proxy");
+      if (savedProxy) proxyInput.value = savedProxy;
+
+      document.getElementById("saveProxy").addEventListener("click", () => {
+        const val = proxyInput.value.trim().replace(/\/$/, "");
+        localStorage.setItem("krea_proxy", val);
+        // Update runtime variable
+        window.API_BASE_RUNTIME = val;
+        showStatus("Proxy URL сохранён", "success");
+      });
+
+      // ─── Strength slider ─────────────────────────────────────────────────────────
+      const strengthSlider = document.getElementById("strength");
+      const strengthVal = document.getElementById("strengthVal");
+      strengthSlider.addEventListener("input", () => {
+        strengthVal.textContent = parseFloat(strengthSlider.value).toFixed(2);
+      });
+
+      // ─── Status helper ───────────────────────────────────────────────────────────
+      function showStatus(msg, type = "loading", spinner = false) {
+        const el = document.getElementById("status");
+        el.className = `status-box visible ${type}`;
+        el.innerHTML = spinner ? `<span class="spinner"></span>${msg}` : msg;
+      }
+
+      function hideStatus() {
+        document.getElementById("status").className = "status-box";
+      }
+
+      // ─── postMessage to Photopea ─────────────────────────────────────────────────
+      function ppRun(script) {
+        return new Promise((resolve) => {
+          const results = [];
+          const handler = (e) => {
+            if (e.source !== window.parent) return;
+            if (e.data === "done") {
+              window.removeEventListener("message", handler);
+              resolve(results);
+            } else {
+              results.push(e.data);
+            }
+          };
+          window.addEventListener("message", handler);
+          window.parent.postMessage(script, "*");
+        });
+      }
+
+      // ─── Encode ArrayBuffer → base64 ─────────────────────────────────────────────
+      function arrayBufferToBase64(buffer) {
+        let binary = "";
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.byteLength; i++)
+          binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      }
+
+      function base64ToArrayBuffer(b64) {
+        const binary = atob(b64);
+        const buf = new ArrayBuffer(binary.length);
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < binary.length; i++) view[i] = binary.charCodeAt(i);
+        return buf;
+      }
+
+      // ─── Get canvas export from Photopea ─────────────────────────────────────────
+      async function getCanvasImage() {
+        // Export the full document as PNG
+        const results = [];
+        return new Promise((resolve, reject) => {
+          let gotBuffer = false;
+          const handler = (e) => {
+            if (e.source !== window.parent) return;
+            if (e.data instanceof ArrayBuffer) {
+              gotBuffer = true;
+              window.removeEventListener("message", handler);
+              resolve(e.data);
+            } else if (e.data === "done" && !gotBuffer) {
+              window.removeEventListener("message", handler);
+              reject(new Error("Документ не вернул изображение"));
+            }
+          };
+          window.addEventListener("message", handler);
+          window.parent.postMessage(`app.activeDocument.saveToOE("png")`, "*");
+        });
+      }
+
+      // ─── Get selection bounds ─────────────────────────────────────────────────────
+      async function getSelectionBounds() {
+        const res = await ppRun(`
     (function() {
       try {
         var doc = app.activeDocument;
@@ -427,244 +535,288 @@ async function getSelectionBounds() {
       }
     })();
   `);
-  const str = res.find(x => typeof x === 'string' && x !== 'done');
-  if (!str || str === 'NO_SELECTION') return null;
-  try { return JSON.parse(str); } catch { return null; }
-}
-
-// ─── Create mask PNG (white = edit zone, black = keep) ───────────────────────
-async function createMaskDataUrl(bounds, docW, docH) {
-  const canvas = document.createElement('canvas');
-  canvas.width = docW; canvas.height = docH;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'black';
-  ctx.fillRect(0, 0, docW, docH);
-  ctx.fillStyle = 'white';
-  ctx.fillRect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
-  return canvas.toDataURL('image/png');
-}
-
-// ─── Convert blob to base64 data URL ─────────────────────────────────────────
-async function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('FileReader failed'));
-    reader.readAsDataURL(blob);
-  });
-}
-
-// ─── Upload asset to Krea ─────────────────────────────────────────────────────
-async function uploadAsset(apiKey, blob, filename) {
-  const form = new FormData();
-  form.append('file', blob, filename);
-  const res = await fetch(API_BASE + '/assets', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}` },
-    body: form
-  });
-  if (!res.ok) throw new Error(`Asset upload failed: ${res.status} ${await res.text()}`);
-  const data = await res.json();
-  return data.image_url || data.url || data.id;
-}
-
-// ─── Poll job until done ──────────────────────────────────────────────────────
-async function pollJob(apiKey, jobId, maxWait = 120000) {
-  const start = Date.now();
-  while (Date.now() - start < maxWait) {
-    await new Promise(r => setTimeout(r, 2500));
-    const res = await fetch(API_BASE + `/jobs/${jobId}`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    });
-    if (!res.ok) throw new Error(`Poll failed: ${res.status}`);
-    const data = await res.json();
-    showStatus(`⏳ Статус: ${data.status}...`, 'loading', true);
-    if (data.status === 'completed') return data.result;
-    if (data.status === 'failed' || data.status === 'cancelled') {
-      throw new Error(`Job ${data.status}`);
-    }
-  }
-  throw new Error('Таймаут генерации (>120 сек)');
-}
-
-// ─── Model endpoint map ───────────────────────────────────────────────────────
-const MODEL_ENDPOINTS = {
-  'flux-kontext':    '/generate/image/bfl/flux-1-kontext-dev',
-  'chatgpt-2':       '/generate/image/openai/gpt-image-2',
-  'seededit':        '/generate/image/bytedance/seededit',
-  'nano-banana-pro': '/generate/image/krea/nano-banana-pro',
-  'imagen-4':        '/generate/image/google/imagen-4',
-};
-
-// ─── Main generate flow ───────────────────────────────────────────────────────
-document.getElementById('generateBtn').addEventListener('click', async () => {
-  const apiKey = apiKeyInput.value.trim();
-  if (!apiKey) { showStatus('❌ Введите API Key', 'error'); return; }
-
-  API_BASE = (proxyInput.value.trim().replace(/\/$/, '')) || localStorage.getItem('krea_proxy') || '';
-  if (!API_BASE) { showStatus('❌ Введите URL Cloudflare Worker (прокси)', 'error'); return; }
-
-  const prompt = document.getElementById('prompt').value.trim();
-  if (!prompt) { showStatus('❌ Введите промпт', 'error'); return; }
-
-  const mode = document.getElementById('mode').value;
-  const model = document.getElementById('model').value;
-  const strength = parseFloat(document.getElementById('strength').value);
-
-  document.getElementById('generateBtn').disabled = true;
-  document.getElementById('previewBox').className = 'preview-box';
-
-  try {
-    // 1. Get canvas image
-    showStatus('📷 Экспортирую холст из Photopea...', 'loading', true);
-    const canvasBuffer = await getCanvasImage();
-    const canvasBlob = new Blob([canvasBuffer], { type: 'image/png' });
-
-    // 2. Get dimensions + selection bounds
-    let bounds = null;
-    let docW = 0, docH = 0;
-
-    if (mode === 'selection') {
-      showStatus('🔍 Читаю выделение...', 'loading', true);
-      bounds = await getSelectionBounds();
-      if (bounds) {
-        docW = bounds.docW; docH = bounds.docH;
+        const str = res.find((x) => typeof x === "string" && x !== "done");
+        if (!str || str === "NO_SELECTION") return null;
+        try {
+          return JSON.parse(str);
+        } catch {
+          return null;
+        }
       }
-    }
 
-    // 3. Prepare image — сначала пробуем загрузить как ассет, fallback на base64
-    showStatus('⬆️ Подготавливаю изображение...', 'loading', true);
+      // ─── Create mask PNG (white = edit zone, black = keep) ───────────────────────
+      async function createMaskDataUrl(bounds, docW, docH) {
+        const canvas = document.createElement("canvas");
+        canvas.width = docW;
+        canvas.height = docH;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, docW, docH);
+        ctx.fillStyle = "white";
+        ctx.fillRect(
+          bounds.left,
+          bounds.top,
+          bounds.right - bounds.left,
+          bounds.bottom - bounds.top,
+        );
+        return canvas.toDataURL("image/png");
+      }
 
-    let image_url;
-    try {
-      showStatus('⬆️ Загружаю ассет в Krea...', 'loading', true);
-      image_url = await uploadAsset(apiKey, canvasBlob, 'canvas.png');
-      if (!image_url) throw new Error('no url returned');
-    } catch (uploadErr) {
-      // Fallback: base64 data URL — работает напрямую без загрузки файла
-      showStatus('⬆️ Использую base64 (fallback)...', 'loading', true);
-      image_url = await blobToDataUrl(canvasBlob);
-    }
+      // ─── Convert blob to base64 data URL ─────────────────────────────────────────
+      async function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error("FileReader failed"));
+          reader.readAsDataURL(blob);
+        });
+      }
 
-    // 4. Build request body per model — all fields in snake_case (Krea API ≥ 2026-06-19)
-    const endpoint = MODEL_ENDPOINTS[model] || MODEL_ENDPOINTS['flux-kontext'];
-    const w = docW || 1024;
-    const h = docH || 1024;
-    let body = { prompt };
+      // ─── Upload asset to Krea ─────────────────────────────────────────────────────
+      async function uploadAsset(apiKey, blob, filename) {
+        const form = new FormData();
+        form.append("file", blob, filename);
+        const res = await fetch(API_BASE + "/assets", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: form,
+        });
+        if (!res.ok)
+          throw new Error(
+            `Asset upload failed: ${res.status} ${await res.text()}`,
+          );
+        const data = await res.json();
+        return data.image_url || data.url || data.id;
+      }
 
-    if (model === 'flux-kontext') {
-      body.image_url = image_url;
-      body.strength  = strength;
-      body.steps     = 25;
-      body.width     = w;
-      body.height    = h;
-    } else if (model === 'chatgpt-2') {
-      // chatgpt-2 uses image_urls (array) and no strength field
-      body.image_urls = [image_url];
-      body.width   = w;
-      body.height  = h;
-      body.quality = 'high';
-    } else if (model === 'seededit') {
-      body.image_url = image_url;
-      body.strength  = strength;
-      body.width     = w;
-      body.height    = h;
-    } else {
-      // nano-banana-pro, imagen-4, etc.
-      body.image_url = image_url;
-      body.strength  = strength;
-      body.width     = w;
-      body.height    = h;
-    }
+      // ─── Poll job until done ──────────────────────────────────────────────────────
+      async function pollJob(apiKey, jobId, maxWait = 300000) {
+        const start = Date.now();
+        while (Date.now() - start < maxWait) {
+          await new Promise((r) => setTimeout(r, 2500));
+          const res = await fetch(API_BASE + `/jobs/${jobId}`, {
+            headers: { Authorization: `Bearer ${apiKey}` },
+          });
+          if (!res.ok) throw new Error(`Poll failed: ${res.status}`);
+          const data = await res.json();
+          showStatus(`⏳ Статус: ${data.status}...`, "loading", true);
+          if (data.status === "completed") return data.result;
+          if (data.status === "failed" || data.status === "cancelled") {
+            throw new Error(`Job ${data.status}`);
+          }
+        }
+        throw new Error("Таймаут генерации (>120 сек)");
+      }
 
-    // 5. If selection mode, include mask note in prompt
-    if (mode === 'selection' && bounds) {
-      // Flux Kontext: промпт должен описывать желаемый результат для всего изображения.
-      // Указываем область явно в тексте промпта.
-      const sel_w = bounds.right - bounds.left;
-      const sel_h = bounds.bottom - bounds.top;
-      body.prompt = `${prompt}. Apply this change only to the selected area (${sel_w}x${sel_h}px region), keep the rest of the image unchanged.`;
-    }
+      // ─── Model endpoint map ───────────────────────────────────────────────────────
+      const MODEL_ENDPOINTS = {
+        "flux-kontext": "/generate/image/bfl/flux-1-kontext-dev",
+        "chatgpt-2": "/generate/image/openai/gpt-image-2",
+        seededit: "/generate/image/bytedance/seededit",
+        "nano-banana-pro": "/generate/image/krea/nano-banana-pro",
+        "imagen-4": "/generate/image/google/imagen-4",
+      };
 
-    // 6. Submit job
-    showStatus('🚀 Отправляю задачу в Krea...', 'loading', true);
-    const genRes = await fetch(API_BASE + endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
+      // ─── Main generate flow ───────────────────────────────────────────────────────
+      document
+        .getElementById("generateBtn")
+        .addEventListener("click", async () => {
+          const apiKey = apiKeyInput.value.trim();
+          if (!apiKey) {
+            showStatus("❌ Введите API Key", "error");
+            return;
+          }
 
-    if (!genRes.ok) {
-      const errText = await genRes.text();
-      throw new Error(`API Error ${genRes.status}: ${errText}`);
-    }
+          API_BASE =
+            proxyInput.value.trim().replace(/\/$/, "") ||
+            localStorage.getItem("krea_proxy") ||
+            "";
+          if (!API_BASE) {
+            showStatus("❌ Введите URL Cloudflare Worker (прокси)", "error");
+            return;
+          }
 
-    const genData = await genRes.json();
-    const jobId = genData.job_id;
-    showStatus(`⏳ Job запущен (${jobId.slice(0,8)}...). Ждём результат...`, 'loading', true);
+          const prompt = document.getElementById("prompt").value.trim();
+          if (!prompt) {
+            showStatus("❌ Введите промпт", "error");
+            return;
+          }
 
-    // 7. Poll
-    const result = await pollJob(apiKey, jobId);
-    const resultUrl = result?.urls?.[0] || result?.url;
-    if (!resultUrl) throw new Error('API не вернул URL изображения');
+          const mode = document.getElementById("mode").value;
+          const model = document.getElementById("model").value;
+          const strength = parseFloat(
+            document.getElementById("strength").value,
+          );
 
-    // 8. Скачиваем через прокси сразу — чтобы и превью и вставка работали
-    showStatus('⬇️ Скачиваю результат через прокси...', 'loading', true);
-    const proxyImgUrl = API_BASE + '/proxy?url=' + encodeURIComponent(resultUrl);
-    const dlRes = await fetch(proxyImgUrl);
-    if (!dlRes.ok) throw new Error('Не удалось скачать результат: ' + dlRes.status);
-    const dlBuffer = await dlRes.arrayBuffer();
-    // Конвертируем в blob URL для превью
-    const blob = new Blob([dlBuffer], { type: 'image/png' });
-    const localUrl = URL.createObjectURL(blob);
+          document.getElementById("generateBtn").disabled = true;
+          document.getElementById("previewBox").className = "preview-box";
 
-    lastResultUrl = resultUrl;
-    lastResultBuffer = dlBuffer;
-    document.getElementById('previewImg').src = localUrl;
-    document.getElementById('previewBox').className = 'preview-box visible';
-    showStatus('✅ Готово! Выберите действие.', 'success');
+          try {
+            // 1. Get canvas image
+            showStatus("📷 Экспортирую холст из Photopea...", "loading", true);
+            const canvasBuffer = await getCanvasImage();
+            const canvasBlob = new Blob([canvasBuffer], { type: "image/png" });
 
-  } catch (err) {
-    showStatus(`❌ ${err.message}`, 'error');
-    console.error(err);
-  } finally {
-    document.getElementById('generateBtn').disabled = false;
-  }
-});
+            // 2. Get dimensions + selection bounds
+            let bounds = null;
+            let docW = 0,
+              docH = 0;
 
-// ─── Apply result to Photopea ─────────────────────────────────────────────────
-document.getElementById('applyBtn').addEventListener('click', async () => {
-  if (!lastResultBuffer) return;
-  showStatus('📥 Вставляю результат в документ...', 'loading', true);
-  try {
-    // Отправляем уже скачанный буфер в Photopea — открывает как новый слой
-    window.parent.postMessage(lastResultBuffer, '*');
+            if (mode === "selection") {
+              showStatus("🔍 Читаю выделение...", "loading", true);
+              bounds = await getSelectionBounds();
+              if (bounds) {
+                docW = bounds.docW;
+                docH = bounds.docH;
+              }
+            }
 
-    // Переименовываем слой
-    await new Promise(r => setTimeout(r, 1200));
-    await ppRun(`
+            // 3. Prepare image — сначала пробуем загрузить как ассет, fallback на base64
+            showStatus("⬆️ Подготавливаю изображение...", "loading", true);
+
+            let image_url;
+            try {
+              showStatus("⬆️ Загружаю ассет в Krea...", "loading", true);
+              image_url = await uploadAsset(apiKey, canvasBlob, "canvas.png");
+              if (!image_url) throw new Error("no url returned");
+            } catch (uploadErr) {
+              // Fallback: base64 data URL — работает напрямую без загрузки файла
+              showStatus("⬆️ Использую base64 (fallback)...", "loading", true);
+              image_url = await blobToDataUrl(canvasBlob);
+            }
+
+            // 4. Build request body per model — all fields in snake_case (Krea API ≥ 2026-06-19)
+            const endpoint =
+              MODEL_ENDPOINTS[model] || MODEL_ENDPOINTS["flux-kontext"];
+            const w = docW || 1024;
+            const h = docH || 1024;
+            let body = { prompt };
+
+            if (model === "flux-kontext") {
+              body.image_url = image_url;
+              body.strength = strength;
+              body.steps = 25;
+              body.width = w;
+              body.height = h;
+            } else if (model === "chatgpt-2") {
+              // chatgpt-2 uses image_urls (array) and no strength field
+              body.image_urls = [image_url];
+              body.width = w;
+              body.height = h;
+              body.quality = "high";
+            } else if (model === "seededit") {
+              body.image_url = image_url;
+              body.strength = strength;
+              body.width = w;
+              body.height = h;
+            } else {
+              // nano-banana-pro, imagen-4, etc.
+              body.image_url = image_url;
+              body.strength = strength;
+              body.width = w;
+              body.height = h;
+            }
+
+            // 5. If selection mode, include mask note in prompt
+            if (mode === "selection" && bounds) {
+              // Flux Kontext: промпт должен описывать желаемый результат для всего изображения.
+              // Указываем область явно в тексте промпта.
+              const sel_w = bounds.right - bounds.left;
+              const sel_h = bounds.bottom - bounds.top;
+              body.prompt = `${prompt}. Apply this change only to the selected area (${sel_w}x${sel_h}px region), keep the rest of the image unchanged.`;
+            }
+
+            // 6. Submit job
+            showStatus("🚀 Отправляю задачу в Krea...", "loading", true);
+            const genRes = await fetch(API_BASE + endpoint, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(body),
+            });
+
+            if (!genRes.ok) {
+              const errText = await genRes.text();
+              throw new Error(`API Error ${genRes.status}: ${errText}`);
+            }
+
+            const genData = await genRes.json();
+            const jobId = genData.job_id;
+            showStatus(
+              `⏳ Job запущен (${jobId.slice(0, 8)}...). Ждём результат...`,
+              "loading",
+              true,
+            );
+
+            // 7. Poll
+            const result = await pollJob(apiKey, jobId);
+            const resultUrl = result?.urls?.[0] || result?.url;
+            if (!resultUrl) throw new Error("API не вернул URL изображения");
+
+            // 8. Скачиваем через прокси сразу — чтобы и превью и вставка работали
+            showStatus(
+              "⬇️ Скачиваю результат через прокси...",
+              "loading",
+              true,
+            );
+            const proxyImgUrl =
+              API_BASE + "/proxy?url=" + encodeURIComponent(resultUrl);
+            const dlRes = await fetch(proxyImgUrl);
+            if (!dlRes.ok)
+              throw new Error("Не удалось скачать результат: " + dlRes.status);
+            const dlBuffer = await dlRes.arrayBuffer();
+            // Конвертируем в blob URL для превью
+            const blob = new Blob([dlBuffer], { type: "image/png" });
+            const localUrl = URL.createObjectURL(blob);
+
+            lastResultUrl = resultUrl;
+            lastResultBuffer = dlBuffer;
+            document.getElementById("previewImg").src = localUrl;
+            document.getElementById("previewBox").className =
+              "preview-box visible";
+            showStatus("✅ Готово! Выберите действие.", "success");
+          } catch (err) {
+            showStatus(`❌ ${err.message}`, "error");
+            console.error(err);
+          } finally {
+            document.getElementById("generateBtn").disabled = false;
+          }
+        });
+
+      // ─── Apply result to Photopea ─────────────────────────────────────────────────
+      document
+        .getElementById("applyBtn")
+        .addEventListener("click", async () => {
+          if (!lastResultBuffer) return;
+          showStatus("📥 Вставляю результат в документ...", "loading", true);
+          try {
+            // Отправляем уже скачанный буфер в Photopea — открывает как новый слой
+            window.parent.postMessage(lastResultBuffer, "*");
+
+            // Переименовываем слой
+            await new Promise((r) => setTimeout(r, 1200));
+            await ppRun(`
       try {
         app.activeDocument.activeLayer.name = "Krea AI Result";
       } catch(e) {}
     `);
 
-    showStatus('✅ Слой "Krea AI Result" добавлен!', 'success');
-  } catch (err) {
-    showStatus(`❌ ${err.message}`, 'error');
-  }
-});
+            showStatus('✅ Слой "Krea AI Result" добавлен!', "success");
+          } catch (err) {
+            showStatus(`❌ ${err.message}`, "error");
+          }
+        });
 
-// ─── Discard ──────────────────────────────────────────────────────────────────
-document.getElementById('discardBtn').addEventListener('click', () => {
-  document.getElementById('previewBox').className = 'preview-box';
-  hideStatus();
-  lastResultUrl = null;
-  lastResultBlob = null;
-  lastResultBuffer = null;
-});
-</script>
-</body>
+      // ─── Discard ──────────────────────────────────────────────────────────────────
+      document.getElementById("discardBtn").addEventListener("click", () => {
+        document.getElementById("previewBox").className = "preview-box";
+        hideStatus();
+        lastResultUrl = null;
+        lastResultBlob = null;
+        lastResultBuffer = null;
+      });
+    </script>
+  </body>
 </html>
