@@ -443,6 +443,16 @@ async function createMaskDataUrl(bounds, docW, docH) {
   return canvas.toDataURL('image/png');
 }
 
+// ─── Convert blob to base64 data URL ─────────────────────────────────────────
+async function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('FileReader failed'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 // ─── Upload asset to Krea ─────────────────────────────────────────────────────
 async function uploadAsset(apiKey, blob, filename) {
   const form = new FormData();
@@ -454,7 +464,6 @@ async function uploadAsset(apiKey, blob, filename) {
   });
   if (!res.ok) throw new Error(`Asset upload failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  // API returns asset with image_url (snake_case)
   return data.image_url || data.url || data.id;
 }
 
@@ -522,16 +531,18 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
       }
     }
 
-    // 3. Upload source image
-    showStatus('⬆️ Загружаю изображение в Krea...', 'loading', true);
+    // 3. Prepare image — сначала пробуем загрузить как ассет, fallback на base64
+    showStatus('⬆️ Подготавливаю изображение...', 'loading', true);
 
-    // Upload image asset to Krea and get a hosted URL
     let image_url;
     try {
+      showStatus('⬆️ Загружаю ассет в Krea...', 'loading', true);
       image_url = await uploadAsset(apiKey, canvasBlob, 'canvas.png');
       if (!image_url) throw new Error('no url returned');
     } catch (uploadErr) {
-      throw new Error(`Ошибка загрузки изображения: ${uploadErr.message}`);
+      // Fallback: base64 data URL — работает напрямую без загрузки файла
+      showStatus('⬆️ Использую base64 (fallback)...', 'loading', true);
+      image_url = await blobToDataUrl(canvasBlob);
     }
 
     // 4. Build request body per model — all fields in snake_case (Krea API ≥ 2026-06-19)
