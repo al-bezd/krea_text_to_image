@@ -426,8 +426,8 @@ async function uploadAsset(apiKey, blob, filename) {
   });
   if (!res.ok) throw new Error(`Asset upload failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  // API returns asset URL
-  return data.url || data.asset_url || data.id;
+  // API returns asset with image_url (snake_case)
+  return data.image_url || data.url || data.id;
 }
 
 // ─── Poll job until done ──────────────────────────────────────────────────────
@@ -494,41 +494,44 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
     // 3. Upload source image
     showStatus('⬆️ Загружаю изображение в Krea...', 'loading', true);
 
-    // Convert blob to data URL for inline use (Krea supports imageUrl as uploaded asset URL)
-    // We'll use base64 inline approach via imageUrls for models that support it
-    // For Flux Kontext, we upload the asset and get a URL back
-    let imageUrl;
+    // Upload image asset to Krea and get a hosted URL
+    let image_url;
     try {
-      imageUrl = await uploadAsset(apiKey, canvasBlob, 'canvas.png');
+      image_url = await uploadAsset(apiKey, canvasBlob, 'canvas.png');
+      if (!image_url) throw new Error('no url returned');
     } catch (uploadErr) {
-      // Fallback: encode as base64 data URL (some endpoints accept it)
-      const b64 = arrayBufferToBase64(canvasBuffer);
-      imageUrl = `data:image/png;base64,${b64}`;
+      throw new Error(`Ошибка загрузки изображения: ${uploadErr.message}`);
     }
 
-    // 4. Build request body per model
+    // 4. Build request body per model — all fields in snake_case (Krea API ≥ 2026-06-19)
     const endpoint = MODEL_ENDPOINTS[model] || MODEL_ENDPOINTS['flux-kontext'];
-    let body = { prompt, strength };
+    const w = docW || 1024;
+    const h = docH || 1024;
+    let body = { prompt };
 
     if (model === 'flux-kontext') {
-      body.imageUrl = imageUrl;
-      body.steps = 25;
-      body.width = docW || 1024;
-      body.height = docH || 1024;
+      body.image_url = image_url;
+      body.strength  = strength;
+      body.steps     = 25;
+      body.width     = w;
+      body.height    = h;
     } else if (model === 'chatgpt-2') {
-      body.imageUrls = [imageUrl];
-      body.width = docW || 1024;
-      body.height = docH || 1024;
+      // chatgpt-2 uses image_urls (array) and no strength field
+      body.image_urls = [image_url];
+      body.width   = w;
+      body.height  = h;
       body.quality = 'high';
-      delete body.strength;
     } else if (model === 'seededit') {
-      body.imageUrl = imageUrl;
-      body.width = docW || 1024;
-      body.height = docH || 1024;
+      body.image_url = image_url;
+      body.strength  = strength;
+      body.width     = w;
+      body.height    = h;
     } else {
-      body.imageUrl = imageUrl;
-      body.width = docW || 1024;
-      body.height = docH || 1024;
+      // nano-banana-pro, imagen-4, etc.
+      body.image_url = image_url;
+      body.strength  = strength;
+      body.width     = w;
+      body.height    = h;
     }
 
     // 5. If selection mode, include mask note in prompt
