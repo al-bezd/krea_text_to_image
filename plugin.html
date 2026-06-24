@@ -615,9 +615,8 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
     document.getElementById('previewBox').className = 'preview-box visible';
     showStatus('✅ Готово! Выберите действие.', 'success');
 
-    // Prefetch blob for insertion
-    const imgRes = await fetch(resultUrl);
-    lastResultBlob = await imgRes.blob();
+    // Сохраняем только URL — вставка через App.open (без fetch/CORS проблем)
+    lastResultUrl = resultUrl;
 
   } catch (err) {
     showStatus(`❌ ${err.message}`, 'error');
@@ -629,28 +628,18 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
 
 // ─── Apply result to Photopea ─────────────────────────────────────────────────
 document.getElementById('applyBtn').addEventListener('click', async () => {
-  if (!lastResultBlob) return;
+  if (!lastResultUrl) return;
   showStatus('📥 Вставляю результат в документ...', 'loading', true);
   try {
-    const buffer = await lastResultBlob.arrayBuffer();
-    // Send image as new layer via postMessage ArrayBuffer
-    // First send the ArrayBuffer (Photopea will open it as a layer if we trigger App.open with asSmart=true)
-    // We use the approach: send buffer then run script to place it
-    const handler = (e) => {
-      if (e.source !== window.parent && e.data === 'done') {
-        window.removeEventListener('message', handler);
-      }
-    };
-    window.addEventListener('message', handler);
-    // Send PNG buffer — Photopea will paste it as a new layer
-    window.parent.postMessage(buffer, '*');
+    // Используем App.open(url, null, true) — загружает URL напрямую как Smart Object слой
+    // Это обходит CORS полностью, т.к. Photopea сам скачивает изображение
+    await ppRun(`app.open(${JSON.stringify(lastResultUrl)}, null, true);`);
 
-    // After it's loaded, rename the layer
-    await new Promise(r => setTimeout(r, 1000));
+    // Переименовываем слой
+    await new Promise(r => setTimeout(r, 800));
     await ppRun(`
       try {
-        var lyr = app.activeDocument.activeLayer;
-        lyr.name = "Krea AI Result";
+        app.activeDocument.activeLayer.name = "Krea AI Result";
       } catch(e) {}
     `);
 
