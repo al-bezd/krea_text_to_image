@@ -40,12 +40,43 @@
         font-size: 12px;
         font-weight: bold;
         color: white;
+        flex-shrink: 0;
       }
 
       .header h1 {
         font-size: 13px;
         font-weight: 600;
         color: #fff;
+      }
+
+      .lang-switcher {
+        margin-left: auto;
+        display: flex;
+        gap: 3px;
+        flex-shrink: 0;
+      }
+
+      .lang-btn {
+        background: none;
+        border: 1px solid #3a3a3a;
+        border-radius: 3px;
+        color: #888;
+        font-size: 10px;
+        padding: 2px 5px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.15s;
+      }
+
+      .lang-btn:hover {
+        color: #eee;
+        border-color: #555;
+      }
+
+      .lang-btn.active {
+        color: #a78bfa;
+        border-color: #7c3aed;
+        background: #7c3aed22;
       }
 
       .content {
@@ -274,90 +305,58 @@
   <body>
     <div class="header">
       <div class="header-logo">K</div>
-      <h1>Krea AI <span class="badge">Inpainting</span></h1>
+      <h1>Krea AI <span class="badge" id="badgeText"></span></h1>
+      <div class="lang-switcher">
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="ru">RU</button>
+        <button class="lang-btn" data-lang="zh">中</button>
+      </div>
     </div>
 
     <div class="content">
       <!-- API Key -->
       <div>
-        <label
-          >API Key
-          <a
-            href="https://www.krea.ai/settings/api-tokens"
-            target="_blank"
-            style="text-transform: none; color: #7c3aed"
-            >→ получить</a
-          ></label
-        >
+        <label id="apiKeyLabel"></label>
         <div class="api-row">
-          <input
-            type="password"
-            id="apiKey"
-            placeholder="Bearer token из krea.ai/settings/api-tokens"
-          />
-          <button class="btn btn-secondary" id="saveKey">Сохр.</button>
+          <input type="password" id="apiKey" />
+          <button class="btn btn-secondary" id="saveKey"></button>
         </div>
       </div>
 
       <!-- Proxy URL -->
       <div>
-        <label
-          >Cloudflare Worker URL
-          <a
-            href="https://workers.cloudflare.com"
-            target="_blank"
-            style="text-transform: none; color: #7c3aed"
-            >→ создать бесплатно</a
-          ></label
-        >
+        <label id="workerLabel"></label>
         <div class="api-row">
-          <input
-            type="text"
-            id="proxyUrl"
-            placeholder="https://krea-proxy.ИМЯ.workers.dev"
-          />
-          <button class="btn btn-secondary" id="saveProxy">Сохр.</button>
+          <input type="text" id="proxyUrl" />
+          <button class="btn btn-secondary" id="saveProxy"></button>
         </div>
-        <p class="tip" style="margin-top: 4px">
-          Нужен для обхода CORS. Деплой занимает 2 мин.
-        </p>
+        <p class="tip" id="corsTip" style="margin-top: 4px"></p>
       </div>
 
       <hr class="divider" />
 
       <!-- Model -->
       <div>
-        <label>Модель</label>
+        <label id="modelLabel"></label>
         <select class="model-select" id="model">
-          <option value="nano-banana">
-            Nano Banana — быстрый и дешёвый ($0.04)
-          </option>
-          <option value="nano-banana-pro">
-            Nano Banana Pro — универсальный
-          </option>
-          <option value="flux-kontext">
-            Flux Kontext — редактирование стиля
-          </option>
-          <option value="chatgpt-2">
-            ChatGPT Image 2 — настоящий inpainting ⭐
-          </option>
-          <option value="seededit">SeedEdit — frontier editing</option>
-          <option value="imagen-4">Imagen 4 — Google, высокое качество</option>
+          <option value="nano-banana" id="opt-nano-banana"></option>
+          <option value="nano-banana-pro" id="opt-nano-banana-pro"></option>
+          <option value="flux-kontext" id="opt-flux-kontext"></option>
+          <option value="chatgpt-2" id="opt-chatgpt-2"></option>
+          <option value="seededit" id="opt-seededit"></option>
+          <option value="imagen-4" id="opt-imagen-4"></option>
         </select>
       </div>
 
       <!-- Prompt -->
       <div>
-        <label>Промпт (что нарисовать)</label>
-        <textarea
-          id="prompt"
-          placeholder="Например: a glowing magic crystal ball on a wooden table, fantasy style"
-        ></textarea>
+        <label id="promptLabel"></label>
+        <textarea id="prompt"></textarea>
       </div>
 
       <!-- Strength -->
       <div>
-        <label>Сила редактирования</label>
+        <label id="strengthLabel"></label>
         <div class="strength-row">
           <input
             type="range"
@@ -369,50 +368,249 @@
           />
           <span class="strength-val" id="strengthVal">0.85</span>
         </div>
-        <p class="tip">0.1 = почти без изменений · 1.0 = полная генерация</p>
+        <p class="tip" id="strengthTip"></p>
       </div>
 
       <!-- Mode -->
       <div>
-        <label>Режим</label>
+        <label id="modeLabel"></label>
         <select id="mode">
-          <option value="selection">Только выделенная область</option>
-          <option value="full">Весь холст</option>
+          <option value="selection" id="opt-selection"></option>
+          <option value="full" id="opt-full"></option>
         </select>
       </div>
 
       <hr class="divider" />
 
       <!-- Generate -->
-      <button class="btn btn-full" id="generateBtn">✦ Генерировать</button>
+      <button class="btn btn-full" id="generateBtn"></button>
 
       <div class="status-box" id="status"></div>
 
       <!-- Preview -->
       <div class="preview-box" id="previewBox">
-        <img id="previewImg" src="" alt="Результат" />
+        <img id="previewImg" src="" alt="" />
         <div class="preview-actions">
-          <button class="btn" id="applyBtn">✓ Вставить в слой</button>
-          <button class="btn btn-secondary" id="discardBtn">✕ Отмена</button>
+          <button class="btn" id="applyBtn"></button>
+          <button class="btn btn-secondary" id="discardBtn"></button>
         </div>
       </div>
 
-      <p class="tip">
-        Совет: сделай выделение (Ctrl+A для всего, или Rectangular Marquee Tool)
-        → введи промпт → нажми Генерировать.<br /><br />
-        Krea API: async job polling · модель <b>Flux Kontext</b> лучше всего для
-        редактирования существующих изображений.
-      </p>
+      <p class="tip" id="bottomTip"></p>
     </div>
-    <div style="position:fixed;bottom:6px;right:8px;font-size:10px;color:#444;pointer-events:none;">v1.6</div>
+    <div style="position:fixed;bottom:6px;right:8px;font-size:10px;color:#444;pointer-events:none;">v1.8</div>
 
     <script>
-      // ─── Config ──────────────────────────────────────────────────────────────────
-      // Замени на URL своего Cloudflare Worker после деплоя:
-      let API_BASE = localStorage.getItem("krea_proxy") || "";
-      if (!API_BASE) {
-        API_BASE = "";
+      // ─── i18n ─────────────────────────────────────────────────────────────────────
+      const TRANSLATIONS = {
+        en: {
+          badge: "Inpainting",
+          apiKeyLabel: 'API Key <a href="https://www.krea.ai/settings/api-tokens" target="_blank" style="text-transform:none;color:#7c3aed">→ get</a>',
+          apiKeyPlaceholder: "Bearer token from krea.ai/settings/api-tokens",
+          saveKeyBtn: "Save",
+          workerLabel: 'Cloudflare Worker URL <a href="https://workers.cloudflare.com" target="_blank" style="text-transform:none;color:#7c3aed">→ create free</a>',
+          workerPlaceholder: "https://krea-proxy.NAME.workers.dev",
+          saveProxyBtn: "Save",
+          corsTip: "Required to bypass CORS. Deploy takes 2 min.",
+          modelLabel: "Model",
+          optNanoBanana: "Nano Banana — fast and cheap ($0.04)",
+          optNanaBananaPro: "Nano Banana Pro — versatile",
+          optFluxKontext: "Flux Kontext — style editing",
+          optChatgpt2: "ChatGPT Image 2 — true inpainting",
+          optSeededit: "SeedEdit — frontier editing",
+          optImagen4: "Imagen 4 — Google, high quality",
+          promptLabel: "Prompt (what to draw)",
+          promptPlaceholder: "E.g.: a glowing magic crystal ball on a wooden table, fantasy style",
+          strengthLabel: "Edit strength",
+          strengthTip: "0.1 = almost no changes · 1.0 = full generation",
+          modeLabel: "Mode",
+          modeSelection: "Selected area only",
+          modeFull: "Full canvas",
+          generateBtn: "✦ Generate",
+          previewAlt: "Result",
+          applyBtn: "✓ Apply to layer",
+          discardBtn: "✕ Cancel",
+          bottomTip: "Tip: make a selection (Ctrl+A for all, or Rectangular Marquee Tool) → enter prompt → click Generate.<br/><br/>Krea API: async job polling · <b>Flux Kontext</b> model is best for editing existing images.",
+          keySaved: "API key saved",
+          proxySaved: "Proxy URL saved",
+          errApiKey: "❌ Enter API Key",
+          errProxy: "❌ Enter Cloudflare Worker URL (proxy)",
+          errPrompt: "❌ Enter a prompt",
+          exportCanvas: "📷 Exporting canvas...",
+          readSelection: "🔍 Reading selection...",
+          errNoSelection: "❌ No active selection. Make a lasso or rectangle selection and try again.",
+          createMask: "🎭 Creating inpainting mask...",
+          cropSelection: "✂️ Cropping selected area...",
+          uploading: "⬆️ Uploading to Krea...",
+          submitting: "🚀 Submitting job to Krea...",
+          jobStarted: (id) => `⏳ Job started (${id}...). Waiting for result...`,
+          polling: (status) => `⏳ Status: ${status}...`,
+          downloading: "⬇️ Downloading result via proxy...",
+          done: "✅ Done! Choose an action.",
+          applying: "📥 Applying result to document...",
+          applied: '✅ Layer "Krea AI Result" added!',
+          errDocNoImage: "Document returned no image",
+          errTimeout: (secs) => `Generation timeout (>${secs} sec)`,
+          errNoUrl: "API returned no image URL",
+          errLayerNotAdded: "Layer was not added to Photopea (timeout)",
+        },
+        ru: {
+          badge: "Inpainting",
+          apiKeyLabel: 'API Key <a href="https://www.krea.ai/settings/api-tokens" target="_blank" style="text-transform:none;color:#7c3aed">→ получить</a>',
+          apiKeyPlaceholder: "Bearer token из krea.ai/settings/api-tokens",
+          saveKeyBtn: "Сохр.",
+          workerLabel: 'Cloudflare Worker URL <a href="https://workers.cloudflare.com" target="_blank" style="text-transform:none;color:#7c3aed">→ создать бесплатно</a>',
+          workerPlaceholder: "https://krea-proxy.ИМЯ.workers.dev",
+          saveProxyBtn: "Сохр.",
+          corsTip: "Нужен для обхода CORS. Деплой занимает 2 мин.",
+          modelLabel: "Модель",
+          optNanoBanana: "Nano Banana — быстрый и дешёвый ($0.04)",
+          optNanaBananaPro: "Nano Banana Pro — универсальный",
+          optFluxKontext: "Flux Kontext — редактирование стиля",
+          optChatgpt2: "ChatGPT Image 2 — настоящий inpainting",
+          optSeededit: "SeedEdit — frontier editing",
+          optImagen4: "Imagen 4 — Google, высокое качество",
+          promptLabel: "Промпт (что нарисовать)",
+          promptPlaceholder: "Например: a glowing magic crystal ball on a wooden table, fantasy style",
+          strengthLabel: "Сила редактирования",
+          strengthTip: "0.1 = почти без изменений · 1.0 = полная генерация",
+          modeLabel: "Режим",
+          modeSelection: "Только выделенная область",
+          modeFull: "Весь холст",
+          generateBtn: "✦ Генерировать",
+          previewAlt: "Результат",
+          applyBtn: "✓ Вставить в слой",
+          discardBtn: "✕ Отмена",
+          bottomTip: "Совет: сделай выделение (Ctrl+A для всего, или Rectangular Marquee Tool) → введи промпт → нажми Генерировать.<br/><br/>Krea API: async job polling · модель <b>Flux Kontext</b> лучше всего для редактирования существующих изображений.",
+          keySaved: "API key сохранён",
+          proxySaved: "Proxy URL сохранён",
+          errApiKey: "❌ Введите API Key",
+          errProxy: "❌ Введите URL Cloudflare Worker (прокси)",
+          errPrompt: "❌ Введите промпт",
+          exportCanvas: "📷 Экспортирую холст...",
+          readSelection: "🔍 Читаю выделение...",
+          errNoSelection: "❌ Нет активного выделения. Сделайте выделение лассо или прямоугольником и попробуйте снова.",
+          createMask: "🎭 Создаю маску для inpainting...",
+          cropSelection: "✂️ Вырезаю выделенную область...",
+          uploading: "⬆️ Загружаю в Krea...",
+          submitting: "🚀 Отправляю задачу в Krea...",
+          jobStarted: (id) => `⏳ Job запущен (${id}...). Ждём результат...`,
+          polling: (status) => `⏳ Статус: ${status}...`,
+          downloading: "⬇️ Скачиваю результат через прокси...",
+          done: "✅ Готово! Выберите действие.",
+          applying: "📥 Вставляю результат в документ...",
+          applied: '✅ Слой "Krea AI Result" добавлен!',
+          errDocNoImage: "Документ не вернул изображение",
+          errTimeout: (secs) => `Таймаут генерации (>${secs} сек)`,
+          errNoUrl: "API не вернул URL изображения",
+          errLayerNotAdded: "Слой не был добавлен в Photopea (timeout)",
+        },
+        zh: {
+          badge: "Inpainting",
+          apiKeyLabel: 'API Key <a href="https://www.krea.ai/settings/api-tokens" target="_blank" style="text-transform:none;color:#7c3aed">→ 获取</a>',
+          apiKeyPlaceholder: "来自 krea.ai/settings/api-tokens 的 Bearer token",
+          saveKeyBtn: "保存",
+          workerLabel: 'Cloudflare Worker URL <a href="https://workers.cloudflare.com" target="_blank" style="text-transform:none;color:#7c3aed">→ 免费创建</a>',
+          workerPlaceholder: "https://krea-proxy.名称.workers.dev",
+          saveProxyBtn: "保存",
+          corsTip: "需要绕过 CORS 限制。部署仅需 2 分钟。",
+          modelLabel: "模型",
+          optNanoBanana: "Nano Banana — 快速且便宜 ($0.04)",
+          optNanaBananaPro: "Nano Banana Pro — 通用型",
+          optFluxKontext: "Flux Kontext — 风格编辑",
+          optChatgpt2: "ChatGPT Image 2 — 真正的局部重绘",
+          optSeededit: "SeedEdit — 前沿编辑",
+          optImagen4: "Imagen 4 — Google，高质量",
+          promptLabel: "提示词（绘制内容）",
+          promptPlaceholder: "例如：a glowing magic crystal ball on a wooden table, fantasy style",
+          strengthLabel: "编辑强度",
+          strengthTip: "0.1 = 几乎无变化 · 1.0 = 完全生成",
+          modeLabel: "模式",
+          modeSelection: "仅选中区域",
+          modeFull: "整个画布",
+          generateBtn: "✦ 生成",
+          previewAlt: "结果",
+          applyBtn: "✓ 应用到图层",
+          discardBtn: "✕ 取消",
+          bottomTip: "提示：先创建选区（Ctrl+A 全选，或使用矩形选框工具）→ 输入提示词 → 点击生成。<br/><br/>Krea API：异步任务轮询 · <b>Flux Kontext</b> 模型最适合编辑现有图像。",
+          keySaved: "API key 已保存",
+          proxySaved: "Proxy URL 已保存",
+          errApiKey: "❌ 请输入 API Key",
+          errProxy: "❌ 请输入 Cloudflare Worker URL（代理）",
+          errPrompt: "❌ 请输入提示词",
+          exportCanvas: "📷 正在导出画布...",
+          readSelection: "🔍 正在读取选区...",
+          errNoSelection: "❌ 无活动选区。请先创建套索或矩形选区，然后重试。",
+          createMask: "🎭 正在创建局部重绘蒙版...",
+          cropSelection: "✂️ 正在裁剪选中区域...",
+          uploading: "⬆️ 正在上传到 Krea...",
+          submitting: "🚀 正在向 Krea 提交任务...",
+          jobStarted: (id) => `⏳ 任务已提交 (${id}...)。等待结果...`,
+          polling: (status) => `⏳ 状态：${status}...`,
+          downloading: "⬇️ 正在通过代理下载结果...",
+          done: "✅ 完成！请选择操作。",
+          applying: "📥 正在将结果插入文档...",
+          applied: '✅ 图层 "Krea AI Result" 已添加！',
+          errDocNoImage: "文档未返回图像",
+          errTimeout: (secs) => `生成超时（>${secs} 秒）`,
+          errNoUrl: "API 未返回图像 URL",
+          errLayerNotAdded: "图层未被添加到 Photopea（超时）",
+        },
+      };
+
+      let currentLang = localStorage.getItem("krea_lang") || "ru";
+
+      function t(key, ...args) {
+        const val = TRANSLATIONS[currentLang]?.[key] ?? TRANSLATIONS.en[key];
+        return typeof val === "function" ? val(...args) : (val ?? key);
       }
+
+      function applyLang() {
+        document.getElementById("badgeText").textContent = t("badge");
+        document.getElementById("apiKeyLabel").innerHTML = t("apiKeyLabel");
+        document.getElementById("apiKey").placeholder = t("apiKeyPlaceholder");
+        document.getElementById("saveKey").textContent = t("saveKeyBtn");
+        document.getElementById("workerLabel").innerHTML = t("workerLabel");
+        document.getElementById("proxyUrl").placeholder = t("workerPlaceholder");
+        document.getElementById("saveProxy").textContent = t("saveProxyBtn");
+        document.getElementById("corsTip").textContent = t("corsTip");
+        document.getElementById("modelLabel").textContent = t("modelLabel");
+        document.getElementById("opt-nano-banana").textContent = t("optNanoBanana");
+        document.getElementById("opt-nano-banana-pro").textContent = t("optNanaBananaPro");
+        document.getElementById("opt-flux-kontext").textContent = t("optFluxKontext");
+        document.getElementById("opt-chatgpt-2").textContent = t("optChatgpt2");
+        document.getElementById("opt-seededit").textContent = t("optSeededit");
+        document.getElementById("opt-imagen-4").textContent = t("optImagen4");
+        document.getElementById("promptLabel").textContent = t("promptLabel");
+        document.getElementById("prompt").placeholder = t("promptPlaceholder");
+        document.getElementById("strengthLabel").textContent = t("strengthLabel");
+        document.getElementById("strengthTip").textContent = t("strengthTip");
+        document.getElementById("modeLabel").textContent = t("modeLabel");
+        document.getElementById("opt-selection").textContent = t("modeSelection");
+        document.getElementById("opt-full").textContent = t("modeFull");
+        document.getElementById("generateBtn").textContent = t("generateBtn");
+        document.getElementById("previewImg").alt = t("previewAlt");
+        document.getElementById("applyBtn").textContent = t("applyBtn");
+        document.getElementById("discardBtn").textContent = t("discardBtn");
+        document.getElementById("bottomTip").innerHTML = t("bottomTip");
+
+        document.querySelectorAll(".lang-btn").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.lang === currentLang);
+        });
+      }
+
+      document.querySelectorAll(".lang-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          currentLang = btn.dataset.lang;
+          localStorage.setItem("krea_lang", currentLang);
+          applyLang();
+        });
+      });
+
+      applyLang();
+
+      // ─── Config ──────────────────────────────────────────────────────────────────
+      let API_BASE = localStorage.getItem("krea_proxy") || "";
 
       // ─── Logger ──────────────────────────────────────────────────────────────────
       const log = (...a) => console.log("[KREA PLUGIN]", ...a);
@@ -424,7 +622,7 @@
       let lastResultBuffer = null;
       let lastCropBounds = null;
       let lastWasFullCanvas = false;
-      let selectionBounds = null; // {left, top, width, height}
+      let selectionBounds = null;
 
       // ─── Persist API key ──────────────────────────────────────────────────────────
       const apiKeyInput = document.getElementById("apiKey");
@@ -433,7 +631,7 @@
 
       document.getElementById("saveKey").addEventListener("click", () => {
         localStorage.setItem("krea_api_key", apiKeyInput.value.trim());
-        showStatus("API key сохранён", "success");
+        showStatus(t("keySaved"), "success");
       });
 
       // ─── Proxy URL ────────────────────────────────────────────────────────────────
@@ -444,9 +642,8 @@
       document.getElementById("saveProxy").addEventListener("click", () => {
         const val = proxyInput.value.trim().replace(/\/$/, "");
         localStorage.setItem("krea_proxy", val);
-        // Update runtime variable
         window.API_BASE_RUNTIME = val;
-        showStatus("Proxy URL сохранён", "success");
+        showStatus(t("proxySaved"), "success");
       });
 
       // ─── Strength slider ─────────────────────────────────────────────────────────
@@ -504,8 +701,6 @@
 
       // ─── Get canvas export from Photopea ─────────────────────────────────────────
       async function getCanvasImage() {
-        // Export the full document as PNG — wait for "done" so its stray message
-        // doesn't race with the next ppRun handler
         return new Promise((resolve, reject) => {
           let buffer = null;
           const handler = (e) => {
@@ -516,7 +711,7 @@
             } else if (e.data === "done") {
               window.removeEventListener("message", handler);
               if (buffer) resolve(buffer);
-              else reject(new Error("Документ не вернул изображение"));
+              else reject(new Error(t("errDocNoImage")));
             }
           };
           window.addEventListener("message", handler);
@@ -612,13 +807,13 @@
           if (!res.ok) throw new Error(`Poll failed: ${res.status}`);
           const data = await res.json();
           log(`poll: status=${data.status}`);
-          showStatus(`⏳ Статус: ${data.status}...`, "loading", true);
+          showStatus(t("polling", data.status), "loading", true);
           if (data.status === "completed") return data.result;
           if (data.status === "failed" || data.status === "cancelled") {
             throw new Error(`Job ${data.status}`);
           }
         }
-        throw new Error(`Таймаут генерации (>${maxWait / 1000} сек)`);
+        throw new Error(t("errTimeout", maxWait / 1000));
       }
 
       // ─── Model endpoint map ───────────────────────────────────────────────────────
@@ -637,7 +832,7 @@
         .addEventListener("click", async () => {
           const apiKey = apiKeyInput.value.trim();
           if (!apiKey) {
-            showStatus("❌ Введите API Key", "error");
+            showStatus(t("errApiKey"), "error");
             return;
           }
 
@@ -646,13 +841,13 @@
             localStorage.getItem("krea_proxy") ||
             "";
           if (!API_BASE) {
-            showStatus("❌ Введите URL Cloudflare Worker (прокси)", "error");
+            showStatus(t("errProxy"), "error");
             return;
           }
 
           const prompt = document.getElementById("prompt").value.trim();
           if (!prompt) {
-            showStatus("❌ Введите промпт", "error");
+            showStatus(t("errPrompt"), "error");
             return;
           }
 
@@ -667,29 +862,22 @@
           document.getElementById("previewBox").className = "preview-box";
 
           try {
-            // 1. Получаем весь холст
-            showStatus("📷 Экспортирую холст...", "loading", true);
+            // 1. Export canvas
+            showStatus(t("exportCanvas"), "loading", true);
             const canvasBuffer = await getCanvasImage();
 
-            // 2. Получаем выделение
+            // 2. Get selection
             let bounds = null;
             if (mode === "selection") {
-              showStatus("🔍 Читаю выделение...", "loading", true);
+              showStatus(t("readSelection"), "loading", true);
               bounds = await getSelectionBounds();
               if (!bounds) {
-                showStatus(
-                  "❌ Нет активного выделения. Сделайте выделение лассо или прямоугольником и попробуйте снова.",
-                  "error",
-                );
+                showStatus(t("errNoSelection"), "error");
                 return;
               }
             }
 
-            // 3. Подготовка изображения
-            // Для ChatGPT Image 2 в режиме выделения:
-            //   — отправляем ВЕСЬ холст с прозрачностью в зоне выделения (настоящий inpainting)
-            // Для остальных моделей:
-            //   — отправляем весь холст с белым фоном
+            // 3. Prepare image
             let sendBlob, sendW, sendH, cropBounds;
 
             const img = await createImageBitmap(
@@ -701,20 +889,17 @@
             log(`image prep: docW=${docW} docH=${docH} bounds=${JSON.stringify(bounds)}`);
 
             if (mode === "selection" && bounds && model === "chatgpt-2") {
-              // ChatGPT inpainting: весь холст, выделение = прозрачная область
-              cropBounds = bounds; // результат — полный холст, при apply вырежем нужную часть
+              cropBounds = bounds;
               lastWasFullCanvas = true;
               log("mode: chatgpt-2 inpainting, sending full canvas with transparent hole");
               sendW = docW;
               sendH = docH;
-              showStatus("🎭 Создаю маску для inpainting...", "loading", true);
+              showStatus(t("createMask"), "loading", true);
               const maskCanvas = document.createElement("canvas");
               maskCanvas.width = docW;
               maskCanvas.height = docH;
               const mctx = maskCanvas.getContext("2d");
-              // Рисуем исходное изображение
               mctx.drawImage(img, 0, 0);
-              // Стираем выделенную область до прозрачности — ChatGPT заполнит её
               mctx.clearRect(
                 bounds.left,
                 bounds.top,
@@ -725,7 +910,6 @@
                 maskCanvas.toBlob(res, "image/png"),
               );
             } else if (mode === "selection" && bounds) {
-              // Остальные модели: кроп выделения с белым фоном
               lastWasFullCanvas = false;
               cropBounds = bounds;
               log("mode: selection crop, sending cropped region");
@@ -733,7 +917,7 @@
               const sel_h = bounds.bottom - bounds.top;
               sendW = sel_w;
               sendH = sel_h;
-              showStatus("✂️ Вырезаю выделенную область...", "loading", true);
+              showStatus(t("cropSelection"), "loading", true);
               const cropCanvas = document.createElement("canvas");
               cropCanvas.width = sel_w;
               cropCanvas.height = sel_h;
@@ -755,7 +939,6 @@
                 cropCanvas.toBlob(res, "image/png"),
               );
             } else {
-              // Весь холст с белым фоном
               lastWasFullCanvas = false;
               cropBounds = null;
               log("mode: full canvas");
@@ -773,7 +956,7 @@
               );
             }
 
-            // flux-kontext requires min 512×512 — scale up if needed
+            // flux-kontext requires min 512×512
             if (model === "flux-kontext" && (sendW < 512 || sendH < 512)) {
               const scale = Math.max(512 / sendW, 512 / sendH);
               const scaledW = Math.round(sendW * scale);
@@ -789,9 +972,9 @@
               sendH = scaledH;
             }
 
-            // 4. Загружаем изображение
+            // 4. Upload image
             log(`upload: sendW=${sendW} sendH=${sendH} blobSize=${sendBlob.size}`);
-            showStatus("⬆️ Загружаю в Krea...", "loading", true);
+            showStatus(t("uploading"), "loading", true);
             let image_url;
             try {
               image_url = await uploadAsset(apiKey, sendBlob, "input.png");
@@ -802,7 +985,7 @@
               image_url = await blobToDataUrl(sendBlob);
             }
 
-            // 5. Строим запрос
+            // 5. Build request body
             const endpoint =
               MODEL_ENDPOINTS[model] || MODEL_ENDPOINTS["chatgpt-2"];
             const w = sendW;
@@ -816,7 +999,6 @@
               body.width = w;
               body.height = h;
             } else if (model === "chatgpt-2") {
-              // ChatGPT Image 2: прозрачные пиксели = зона inpainting
               body.image_urls = [image_url];
               body.width = w;
               body.height = h;
@@ -835,7 +1017,7 @@
             }
 
             // 6. Submit job
-            showStatus("🚀 Отправляю задачу в Krea...", "loading", true);
+            showStatus(t("submitting"), "loading", true);
             const genRes = await fetch(API_BASE + endpoint, {
               method: "POST",
               headers: {
@@ -853,31 +1035,22 @@
             const genData = await genRes.json();
             const jobId = genData.job_id;
             log(`job submitted: endpoint=${endpoint} jobId=${jobId}`, body);
-            showStatus(
-              `⏳ Job запущен (${jobId.slice(0, 8)}...). Ждём результат...`,
-              "loading",
-              true,
-            );
+            showStatus(t("jobStarted", jobId.slice(0, 8)), "loading", true);
 
             // 7. Poll
             const result = await pollJob(apiKey, jobId);
             const resultUrl = result?.urls?.[0] || result?.url;
             log("job result:", result);
-            if (!resultUrl) throw new Error("API не вернул URL изображения");
+            if (!resultUrl) throw new Error(t("errNoUrl"));
 
-            // 8. Скачиваем через прокси сразу — чтобы и превью и вставка работали
-            showStatus(
-              "⬇️ Скачиваю результат через прокси...",
-              "loading",
-              true,
-            );
+            // 8. Download via proxy
+            showStatus(t("downloading"), "loading", true);
             const proxyImgUrl =
               API_BASE + "/proxy?url=" + encodeURIComponent(resultUrl);
             const dlRes = await fetch(proxyImgUrl);
             if (!dlRes.ok)
-              throw new Error("Не удалось скачать результат: " + dlRes.status);
+              throw new Error("Download failed: " + dlRes.status);
             const dlBuffer = await dlRes.arrayBuffer();
-            // Конвертируем в blob URL для превью
             const blob = new Blob([dlBuffer], { type: "image/png" });
             const localUrl = URL.createObjectURL(blob);
 
@@ -888,7 +1061,7 @@
             document.getElementById("previewImg").src = localUrl;
             document.getElementById("previewBox").className =
               "preview-box visible";
-            showStatus("✅ Готово! Выберите действие.", "success");
+            showStatus(t("done"), "success");
           } catch (err) {
             showStatus(`❌ ${err.message}`, "error");
             log("generate error:", err);
@@ -913,13 +1086,12 @@
         .getElementById("applyBtn")
         .addEventListener("click", async () => {
           if (!lastResultBuffer) return;
-          showStatus("📥 Вставляю результат в документ...", "loading", true);
+          showStatus(t("applying"), "loading", true);
           log(`apply: cropBounds=${JSON.stringify(lastCropBounds)} wasFullCanvas=${lastWasFullCanvas} bufferSize=${lastResultBuffer.byteLength}`);
           try {
             let bufferToSend = lastResultBuffer;
 
             if (lastCropBounds) {
-              // Подготавливаем изображение точного размера выделения
               const img = await createImageBitmap(
                 new Blob([lastResultBuffer], { type: "image/png" }),
               );
@@ -933,10 +1105,8 @@
               const ctx = canvas.getContext("2d");
 
               if (lastWasFullCanvas) {
-                // ChatGPT mode: вырезаем нужный кусок из полноразмерного результата
                 ctx.drawImage(img, left, top, targetW, targetH, 0, 0, targetW, targetH);
               } else {
-                // Другие модели: результат уже обрезан, масштабируем к точным размерам
                 ctx.drawImage(img, 0, 0, targetW, targetH);
               }
 
@@ -949,16 +1119,13 @@
               log(`apply: cropped buffer ready: ${bufferToSend.byteLength} bytes, targetW=${targetW} targetH=${targetH}`);
             }
 
-            // Конвертируем в base64 data URL
             const base64 = arrayBufferToBase64(bufferToSend);
             const dataUrl = `data:image/png;base64,${base64}`;
 
-            // Получаем количество слоёв до открытия
             const lcRes = await ppRun(`app.echoToOE(String(app.activeDocument.layers.length));`);
             const layerCountBefore = parseInt(lcRes[0], 10);
             log(`apply: layerCountBefore=${layerCountBefore}`);
 
-            // Открываем как Smart Object в текущий документ (без нового документа!)
             log(`apply: opening as smart object in current doc (${bufferToSend.byteLength} bytes)`);
             await ppRun(`
               try {
@@ -976,15 +1143,11 @@
               }
             `);
 
-            // Ждём пока Photopea реально добавит слой (решает race condition)
             log(`apply: waiting for new layer (expected count > ${layerCountBefore})...`);
             const added = await waitForNewLayer(layerCountBefore);
-            if (!added) throw new Error("Слой не был добавлен в Photopea (timeout)");
+            if (!added) throw new Error(t("errLayerNotAdded"));
             log(`apply: new layer detected`);
 
-            // Переименовываем и позиционируем новый слой
-            // Новый Smart Object всегда добавляется сверху стека (doc.layers[0])
-            // Позиция рассчитывается через центр документа (как у Astria AI)
             const hasPos = lastCropBounds !== null;
             const selLeft = hasPos ? lastCropBounds.left : 0;
             const selTop = hasPos ? lastCropBounds.top : 0;
@@ -1013,7 +1176,7 @@
             `);
             log("apply: pos result:", posRes);
 
-            showStatus('✅ Слой "Krea AI Result" добавлен!', "success");
+            showStatus(t("applied"), "success");
           } catch (err) {
             log("apply error:", err);
             showStatus(`❌ ${err.message}`, "error");
