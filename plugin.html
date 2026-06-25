@@ -404,7 +404,7 @@
         редактирования существующих изображений.
       </p>
     </div>
-    <div style="position:fixed;bottom:6px;right:8px;font-size:10px;color:#444;pointer-events:none;">v1.4</div>
+    <div style="position:fixed;bottom:6px;right:8px;font-size:10px;color:#444;pointer-events:none;">v1.5</div>
 
     <script>
       // ─── Config ──────────────────────────────────────────────────────────────────
@@ -898,6 +898,17 @@
         });
 
       // ─── Apply result to Photopea ─────────────────────────────────────────────────
+
+      async function waitForNewLayer(expectedCount, maxWaitMs = 8000) {
+        const start = Date.now();
+        while (Date.now() - start < maxWaitMs) {
+          const r = await ppRun(`app.echoToOE(String(app.activeDocument.layers.length));`);
+          if (parseInt(r[0], 10) > expectedCount) return true;
+          await new Promise(res => setTimeout(res, 80));
+        }
+        return false;
+      }
+
       document
         .getElementById("applyBtn")
         .addEventListener("click", async () => {
@@ -942,9 +953,14 @@
             const base64 = arrayBufferToBase64(bufferToSend);
             const dataUrl = `data:image/png;base64,${base64}`;
 
+            // Получаем количество слоёв до открытия
+            const lcRes = await ppRun(`app.echoToOE(String(app.activeDocument.layers.length));`);
+            const layerCountBefore = parseInt(lcRes[0], 10);
+            log(`apply: layerCountBefore=${layerCountBefore}`);
+
             // Открываем как Smart Object в текущий документ (без нового документа!)
             log(`apply: opening as smart object in current doc (${bufferToSend.byteLength} bytes)`);
-            const openRes = await ppRun(`
+            await ppRun(`
               try {
                 var doc = app.activeDocument;
                 for (var i = 0; i < doc.layers.length; i++) {
@@ -959,7 +975,12 @@
                 app.echoToOE("err:" + e);
               }
             `);
-            log("apply: open result:", openRes);
+
+            // Ждём пока Photopea реально добавит слой (решает race condition)
+            log(`apply: waiting for new layer (expected count > ${layerCountBefore})...`);
+            const added = await waitForNewLayer(layerCountBefore);
+            if (!added) throw new Error("Слой не был добавлен в Photopea (timeout)");
+            log(`apply: new layer detected`);
 
             // Переименовываем и позиционируем новый слой
             const x = lastCropBounds ? lastCropBounds.left : null;
