@@ -404,7 +404,7 @@
         редактирования существующих изображений.
       </p>
     </div>
-    <div style="position:fixed;bottom:6px;right:8px;font-size:10px;color:#444;pointer-events:none;">v1.5</div>
+    <div style="position:fixed;bottom:6px;right:8px;font-size:10px;color:#444;pointer-events:none;">v1.6</div>
 
     <script>
       // ─── Config ──────────────────────────────────────────────────────────────────
@@ -983,18 +983,31 @@
             log(`apply: new layer detected`);
 
             // Переименовываем и позиционируем новый слой
-            const x = lastCropBounds ? lastCropBounds.left : null;
-            const y = lastCropBounds ? lastCropBounds.top : null;
+            // Новый Smart Object всегда добавляется сверху стека (doc.layers[0])
+            // Позиция рассчитывается через центр документа (как у Astria AI)
             const hasPos = lastCropBounds !== null;
+            const selLeft = hasPos ? lastCropBounds.left : 0;
+            const selTop = hasPos ? lastCropBounds.top : 0;
+            const imgW = hasPos ? lastCropBounds.right - lastCropBounds.left : 0;
+            const imgH = hasPos ? lastCropBounds.bottom - lastCropBounds.top : 0;
 
             const posRes = await ppRun(`
               try {
-                var lyr = app.activeDocument.activeLayer;
+                var doc = app.activeDocument;
+                var lyr = doc.layers[0];
+                doc.activeLayer = lyr;
                 lyr.name = "Krea AI Result";
                 ${hasPos ? `
-                var b = lyr.bounds;
-                lyr.translate(${x} - b[0].value, ${y} - b[1].value);
-                app.echoToOE("ok:moved to ${x},${y}");
+                var selLeft = ${selLeft};
+                var selTop = ${selTop};
+                var imgW = ${imgW};
+                var imgH = ${imgH};
+                var centerX = doc.width / 2;
+                var centerY = doc.height / 2;
+                var curLeft = centerX - imgW / 2;
+                var curTop = centerY - imgH / 2;
+                lyr.translate(selLeft - curLeft, selTop - curTop);
+                app.echoToOE("ok:placed at " + selLeft + "," + selTop + " delta=" + (selLeft - curLeft) + "," + (selTop - curTop));
                 ` : `app.echoToOE("ok:no reposition");`}
               } catch(e) { app.echoToOE("err:" + e); }
             `);
