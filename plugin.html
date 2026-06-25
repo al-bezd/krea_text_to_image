@@ -380,7 +380,7 @@
         редактирования существующих изображений.
       </p>
     </div>
-    <div style="position:fixed;bottom:6px;right:8px;font-size:10px;color:#444;pointer-events:none;">v1.2</div>
+    <div style="position:fixed;bottom:6px;right:8px;font-size:10px;color:#444;pointer-events:none;">v1.3</div>
 
     <script>
       // ─── Config ──────────────────────────────────────────────────────────────────
@@ -882,43 +882,38 @@
               log(`apply: cropped buffer ready: ${bufferToSend.byteLength} bytes, targetW=${targetW} targetH=${targetH}`);
             }
 
-            // Запоминаем имя исходного документа до отправки
-            const nameRes = await ppRun(`
-              try { app.echoToOE(app.activeDocument.name); } catch(e) { app.echoToOE("err:" + e); }
+            // Конвертируем в base64 data URL
+            const base64 = arrayBufferToBase64(bufferToSend);
+            const dataUrl = `data:image/png;base64,${base64}`;
+
+            // Открываем как Smart Object в текущий документ (без нового документа!)
+            log(`apply: opening as smart object in current doc (${bufferToSend.byteLength} bytes)`);
+            const openRes = await ppRun(`
+              try {
+                var doc = app.activeDocument;
+                for (var i = 0; i < doc.layers.length; i++) {
+                  if (doc.layers[i].typename !== "LayerSet") {
+                    doc.activeLayer = doc.layers[i];
+                    break;
+                  }
+                }
+                app.open(${JSON.stringify(dataUrl)}, null, true);
+                app.echoToOE("ok");
+              } catch(e) {
+                app.echoToOE("err:" + e);
+              }
             `);
-            const origDocName = nameRes.find((x) => typeof x === "string" && x !== "done") || "";
-            log("apply: original doc name:", origDocName);
+            log("apply: open result:", openRes);
 
-            // Отправляем буфер — Photopea откроет его как новый документ
-            log(`apply: sending buffer to Photopea (${bufferToSend.byteLength} bytes)`);
-            window.parent.postMessage(bufferToSend, "*");
-            await new Promise((r) => setTimeout(r, 1500));
-
-            // Перемещаем слой из нового документа в исходный и закрываем новый
+            // Переименовываем и позиционируем новый слой
             const x = lastCropBounds ? lastCropBounds.left : null;
             const y = lastCropBounds ? lastCropBounds.top : null;
             const hasPos = lastCropBounds !== null;
 
-            const moveRes = await ppRun(`
+            const posRes = await ppRun(`
               try {
-                var origDoc = null;
-                for (var i = 0; i < app.documents.length; i++) {
-                  if (app.documents[i].name === ${JSON.stringify(origDocName)}) {
-                    origDoc = app.documents[i];
-                    break;
-                  }
-                }
-                if (!origDoc) throw new Error("original doc not found: " + ${JSON.stringify(origDocName)});
-
-                var newDoc = app.activeDocument;
-                var resultLyr = newDoc.activeLayer;
-                resultLyr.duplicate(origDoc, ElementPlacement.PLACEATBEGINNING);
-                newDoc.close(SaveOptions.DONOTSAVECHANGES);
-
-                app.activeDocument = origDoc;
-                var lyr = origDoc.activeLayer;
+                var lyr = app.activeDocument.activeLayer;
                 lyr.name = "Krea AI Result";
-
                 ${hasPos ? `
                 var b = lyr.bounds;
                 lyr.translate(${x} - b[0].value, ${y} - b[1].value);
@@ -926,7 +921,7 @@
                 ` : `app.echoToOE("ok:no reposition");`}
               } catch(e) { app.echoToOE("err:" + e); }
             `);
-            log("apply move result:", moveRes);
+            log("apply: pos result:", posRes);
 
             showStatus('✅ Слой "Krea AI Result" добавлен!', "success");
           } catch (err) {
