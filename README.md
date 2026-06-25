@@ -113,26 +113,9 @@ https://krea-proxy.ИМЯ.workers.dev
 
 ## Шаг 2 — Установка плагина в Photopea
 
-### Вариант А — хостинг уже готов (этот репозиторий на GitHub Pages)
-
-Плагин доступен по адресу:
-```
-https://USERNAME.github.io/REPO/plugin.html
-```
-
-Если хочешь использовать свою копию — сделай форк репозитория и включи GitHub Pages (Settings → Pages → Deploy from branch `main`).
-
-### Вариант Б — Netlify Drop (без форка)
-
-1. Зайди на [app.netlify.com/drop](https://app.netlify.com/drop)
-2. Перетащи файл `plugin.html`
-3. Netlify автоматически выдаст тебе публичный URL
-
-### Подключение к Photopea
-
 1. Открой [photopea.com](https://www.photopea.com)
-2. В меню выбери **Window → Plugins → Add Plugin**
-3. Вставь URL своего `plugin.html`
+2. В меню выбери **Window → Plugins**
+3. Найди **Krea AI** в каталоге плагинов и нажми **Install**
 4. Плагин появится на правой панели с иконкой **K**
 
 ---
